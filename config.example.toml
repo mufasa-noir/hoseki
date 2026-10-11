@@ -1,0 +1,74 @@
+# Hoseki configuration. Copy to `config.toml` next to the repo root, or to
+# ~/.config/hoseki/config.toml, and edit.
+
+[server]
+host = "127.0.0.1"      # DO NOT change unless you understand the risk.
+port = 8765
+
+[workspace]
+# The only directory Hoseki will ever touch. Absolute path recommended.
+root = "/home/you/code/your-project"
+
+[limits]
+max_file_bytes       = 2_000_000   # refuse to read files bigger than this
+max_read_lines       = 2000        # per read_file call
+max_output_bytes     = 200_000     # hard cap on any tool output
+max_calls_per_minute = 60
+max_list_depth       = 5
+max_grep_results     = 500
+max_find_results     = 2000
+
+[secrets]
+# Files matching any of these globs are refused by default.
+deny_globs = [
+  ".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx",
+  "id_rsa*", "id_ed25519*", "id_ecdsa*", "id_dsa*",
+  ".git/config", ".aws/credentials", ".netrc", ".npmrc",
+  ".ssh/*", ".gnupg/*", "*.kdbx",
+]
+# Cheap regex redaction of obvious secrets in tool output.
+redact = true
+
+[auth]
+# Generated on first run with 0600 perms. DO NOT commit.
+token_file = "~/.hoseki/token"
+
+[audit]
+# Append-only JSONL audit log.
+path = "~/.hoseki/audit.jsonl"
+
+[extension]
+# Origin patterns allowed to call the daemon. Pin to your extension ID once
+# you know it, e.g. "chrome-extension://abcdefghijklmnop...".
+allowed_origins = ["chrome-extension://*", "moz-extension://*"]
+# curl and other CLI clients send no Origin header; they still need the bearer
+# token, so this is not a bypass. Set false if you want Origin-required.
+allow_missing_origin = true
+
+[commands]
+# Deny-by-default. Add *prefixes* the model is allowed to run. Matching is
+# against the raw command string; shell operators (; && || ` $( > <) are
+# rejected outright even if the prefix matches, to prevent chaining.
+allowlist = [
+  # "git status",
+  # "git diff",
+  # "ls",
+  # "pytest",
+]
+# If Docker is not available and this is false, run_cmd refuses entirely.
+unsafe_host_exec = false
+default_timeout = 60
+max_timeout = 600
+max_output_bytes = 200_000
+
+[sandbox]
+# "auto"   – use Docker when available, otherwise refuse
+# "docker" – require Docker
+# "host"   – run on the host (still requires terminal approval)
+# "refuse" – kill switch; disable run_cmd entirely
+mode = "auto"
+docker_image = "python:3.11-slim"
+network = false
+workspace_read_only = true
+memory = "512m"
+pids_limit = 256

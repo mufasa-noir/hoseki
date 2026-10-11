@@ -1,0 +1,16 @@
+body { width: 340px; font: 13px/1.4 system-ui, sans-serif; padding: 12px; }
+h1 { font-size: 14px; margin: 0 0 8px; }
+label { display: block; margin: 6px 0; }
+input[type="text"], input[type="password"], input[type="number"] {
+  width: 100%; padding: 4px 6px; box-sizing: border-box;
+  font: inherit;
+}
+.row { display: flex; gap: 6px; margin: 8px 0; }
+button { padding: 4px 8px; cursor: pointer; }
+.state { font-family: ui-monospace, monospace; font-size: 11px;
+         white-space: pre-wrap; padding: 6px; background: #f3f3f3;
+         border-radius: 4px; min-height: 1em; }
+hr { border: none; border-top: 1px solid #ddd; margin: 10px 0; }
+.check { display: flex; align-items: center; gap: 6px; }
+.warn { color: #8a3b12; background: #fff2e0; padding: 6px;
+        border-radius: 4px; font-size: 11px; margin: 6px 0; }
