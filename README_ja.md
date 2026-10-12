@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2><b>hoseki（ホセキ）: 無料のWebチャットモデルに、あなたのローカルマシンを扱う「手」を</b></h2>
+<h2><b>Hoseki（ホセキ）: 無料のWebチャットモデルに、あなたのローカルマシンを扱う「手」を</b></h2>
 
 </div>
 
@@ -124,7 +124,7 @@ hoseki は**信頼できないコード**に向けて使うことを想定して
 ````
 git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
-pip install -r requirements.txt
+pip install -e '.[dev]'
 ````
 
 2. （任意）`grep` を高速化するために [`ripgrep`](https://github.com/BurntSushi/ripgrep) を、サンドボックス内でコマンドを実行したい場合は [Docker](https://www.docker.com/) をインストールします。

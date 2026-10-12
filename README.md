@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2><b>hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
+<h2><b>Hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
 
 </div>
 
@@ -124,7 +124,7 @@ hoseki is meant to be pointed at **untrusted code**, so it assumes file contents
 ````
 git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
-pip install -r requirements.txt
+pip install -e '.[dev]'
 ````
 
 2. (Optional) Install [`ripgrep`](https://github.com/BurntSushi/ripgrep) for faster `grep`, and [Docker](https://www.docker.com/) if you want sandboxed command execution.
