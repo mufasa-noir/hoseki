@@ -160,7 +160,7 @@ deny_globs = [".env", "*.pem", "id_rsa*"]
 ### ステップ 2: デーモンを起動する
 
 ````
-python -m hoseki --config config.toml
+python3 -m hoseki --config config.toml
 ````
 
 初回起動時に、hoseki はランダムな認証トークンを生成し、その保存先を表示します。このトークンは、拡張機能に一度だけ貼り付けます。

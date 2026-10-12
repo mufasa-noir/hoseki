@@ -160,7 +160,7 @@ deny_globs = [".env", "*.pem", "id_rsa*"]
 ### Step 2: Start the Daemon
 
 ````
-python -m hoseki --config config.toml
+python3 -m hoseki --config config.toml
 ````
 
 On first start, hoseki generates a random auth token and prints where it was saved. You'll paste this token into the extension once.
