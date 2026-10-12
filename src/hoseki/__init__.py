@@ -1,6 +1,8 @@
 """Tool registry."""
 from __future__ import annotations
 
+__version__ = "0.1.0"
+
 from hoseki.tools.base import Tool, ToolResult
 from hoseki.tools.find_files import FindFilesArgs, find_files
 from hoseki.tools.grep import GrepArgs, grep
@@ -80,4 +82,4 @@ _register(Tool(
 ))
 
 
-__all__ = ["TOOLS", "Tool", "ToolResult"]
+__all__ = ["__version__", "TOOLS", "Tool", "ToolResult"]
