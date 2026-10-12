@@ -26,7 +26,7 @@
 
 ## 📜 Introduction
 
-Top-tier models are often free in a browser tab but locked behind paid API keys the moment you want them to touch your files. **hoseki** closes that gap. It sits between a chat page and your filesystem so the model you're already talking to can help with software development and security code review.
+Top-tier models are often free in a browser tab but locked behind paid API keys the moment you want them to touch your files. **Hoseki** closes that gap. It sits between a chat page and your filesystem so the model you're already talking to can help with software development and security code review.
 
 It is made of three small pieces:
 
@@ -34,7 +34,7 @@ It is made of three small pieces:
 2. A **browser extension (Manifest V3)** that watches the chat page, detects tool-call blocks in the model's reply, sends them to the daemon, and drops the results back into the chat input.
 3. A **prompt preamble** you paste at the start of a chat that teaches the model the tool-call protocol.
 
-> **Status:** hoseki is under active development and being built in phases (see the [Roadmap](#️-roadmap)). Treat anything not marked as done there as a design target, not a shipped feature.
+> **Status:** Hoseki is under active development and being built in phases (see the [Roadmap](#️-roadmap)). Treat anything not marked as done there as a design target, not a shipped feature.
 
 ## 🏗️ Architecture
 
