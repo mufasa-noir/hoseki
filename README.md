@@ -122,7 +122,7 @@ hoseki is meant to be pointed at **untrusted code**, so it assumes file contents
 1. Install Python 3.11+, then clone the repo and install the dependencies:
 
 ````
-git clone https://github.com/<your-username>/hoseki.git
+git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
 pip install -r requirements.txt
 ````

@@ -6,7 +6,7 @@
 
 <div align="center">
 
-[![License](https://img.shields.io/github/license/<your-username>/hoseki?color=green)](https://github.com/<your-username>/hoseki/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/mufasa-noir/hoseki?color=green)](https://github.com/mufasa-noir/hoseki/blob/main/LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![No API Keys](https://img.shields.io/badge/API_Keys-none_required-brightgreen)
 
@@ -122,7 +122,7 @@ hoseki は**信頼できないコード**に向けて使うことを想定して
 1. Python 3.11 以上をインストールし、リポジトリをクローンして依存パッケージをインストールします。
 
 ````
-git clone https://github.com/<your-username>/hoseki.git
+git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
 pip install -r requirements.txt
 ````
