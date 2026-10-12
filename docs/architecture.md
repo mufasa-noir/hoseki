@@ -1,32 +1,41 @@
 # Architecture
 
 Hoseki has three cooperating parts, plus an optional MCP adapter.
-┌───────────────┐ HTTP 127.0.0.1 ┌────────────────────────┐
-│ Chat web UI │◄───────────────────►│ Browser extension │
-│ (Kimi, z.ai) │ (DOM adapters) │ MV3, background worker │
-└───────────────┘ └─────────┬──────────────┘
-│ POST /v1/call
-│ Authorization: Bearer …
-▼
-┌────────────────────────┐
-│ Hoseki daemon │
-│ FastAPI + uvicorn │
-│ │
-│ auth.py Origin/Host│
-│ jail.py path jail │
-│ secrets.py deny-list │
-│ approval.py terminal │
-│ tools/ registry │
-│ audit.py JSONL │
-└──────────┬─────────────┘
-│
-│ reused by
-▼
-┌────────────────────────┐
-│ hoseki mcp (stdio) │
-│ JSON-RPC, same ctx │
-└────────────────────────┘
 
+````
+┌──────────────────────────────┐
+│         Chat web UI          │
+│         (Kimi, z.ai)         │
+└──────────────────────────────┘
+                ▲
+                │ DOM adapters
+                ▼
+┌──────────────────────────────┐
+│      Browser extension       │
+│    MV3, background worker    │
+└──────────────────────────────┘
+                │ POST /v1/call
+                │ HTTP 127.0.0.1
+                │ Authorization: Bearer …
+                ▼
+┌──────────────────────────────┐
+│        Hoseki daemon         │
+│      FastAPI + uvicorn       │
+│                              │
+│  auth.py      Origin/Host    │
+│  jail.py      path jail      │
+│  secrets.py   deny-list      │
+│  approval.py  terminal       │
+│  tools/       registry       │
+│  audit.py     JSONL          │
+└──────────────────────────────┘
+                │ reused by
+                ▼
+┌──────────────────────────────┐
+│      hoseki mcp (stdio)      │
+│      JSON-RPC, same ctx      │
+└──────────────────────────────┘
+````
 ## The daemon
 
 - FastAPI + uvicorn, single app factory in `src/hoseki/app.py`.
