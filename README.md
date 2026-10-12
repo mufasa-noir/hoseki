@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2><b>hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
+<h2><b>Hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
 
 </div>
 
@@ -14,7 +14,7 @@
 
 <div align="center">
 
-[English](README.md) | [日本語](README.ja.md)
+[English](README.md) | [日本語](README_ja.md)
 
 </div>
 
@@ -22,7 +22,7 @@
   <img src="figures/logo.png" alt="hoseki: free web chat models, hands on your local machine" width="800">
 </div>
 
-> hoseki is a **local bridge** that lets free web chat UIs (Kimi, GLM, and friends) read, search, and edit files in your project folder, and run commands with your approval. **No LLM API keys, no paid plans.**
+> Hoseki is a **local bridge** that lets free web chat UIs (Kimi, GLM, and friends) read, search, and edit files in your project folder, and run commands with your approval. **No LLM API keys, no paid plans.**
 
 ## 📜 Introduction
 
