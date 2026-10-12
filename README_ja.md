@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2><b>Hoseki（ホセキ）: 無料のWebチャットモデルに、あなたのローカルマシンを扱う「手」を</b></h2>
+<h2><b>hoseki（ホセキ）: 無料のWebチャットモデルに、あなたのローカルマシンを扱う「手」を</b></h2>
 
 </div>
 
@@ -38,7 +38,7 @@ hoseki は 3 つの小さな部品で構成されています。
 
 ## 🏗️ アーキテクチャ
 
-````
+```
 ┌──────────────────────────────┐
 │         Chat web UI          │
 │         (Kimi, z.ai)         │
@@ -71,7 +71,7 @@ hoseki は 3 つの小さな部品で構成されています。
 │      hoseki mcp (stdio)      │
 │      JSON-RPC, same ctx      │
 └──────────────────────────────┘
-````
+```
 
 | モジュール    | 役割                                                                         |
 | ------------- | ---------------------------------------------------------------------------- |
@@ -115,73 +115,99 @@ hoseki は**信頼できないコード**に向けて使うことを想定して
 
 > **正直な注意点:** 区切り文字や指示によってプロンプトインジェクションのリスクは下がりますが、なくなるわけではありません。被害を実際に抑えるのは、承認ゲートとネットワークなしのサンドボックスです。
 
-## 🚀 はじめに
+## 🚀 クイックスタート
 
-### インストール
+> **じっくり安全に進めたい方へ:** [docs/RUNNING.ja.md](docs/RUNNING.ja.md) では、すべてのステップにチェックポイントを付けて順番に解説しています。ここでは短縮版を紹介します。
 
-1. Python 3.11 以上をインストールし、リポジトリをクローンして依存パッケージをインストールします。
+### 前提条件
 
-````
+- Python 3.11 以上（`python3 --version`）と `git`
+- （任意）コマンドのサンドボックス用に [Docker](https://www.docker.com/)、`grep` の高速化用に [`ripgrep`](https://github.com/BurntSushi/ripgrep)
+- 以下の確認コマンドを実行する場合は `curl` と `jq`
+
+### ステップ 1: インストール
+
+```
 git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
-````
+hoseki --version                   # hoseki 0.1.0 と表示されれば OK
+```
 
-2. （任意）`grep` を高速化するために [`ripgrep`](https://github.com/BurntSushi/ripgrep) を、サンドボックス内でコマンドを実行したい場合は [Docker](https://www.docker.com/) をインストールします。
+### ステップ 2: 設定する
 
-### ステップ 1: 設定する
+```
+cp config.example.toml config.toml
+```
 
-すべての設定は `config.toml` にあります。最低限、モデルに見せたいプロジェクトをワークスペースルートに設定してください。
+続いて、最初に必要な唯一の設定であるワークスペースルートを指定します。
 
-````toml
+```toml
 [workspace]
-root = "/home/you/projects/target"
+root = "/absolute/path/to/a/throwaway/folder"
+```
 
-[server]
-host = "127.0.0.1"
-port = 8765
+> 最初は、1〜2 個のファイルが入っただけの使い捨てフォルダを使い、本物のコードは**指定しないでください**。そのほかの設定（制限、コマンドの許可リスト、シークレットの拒否リスト）は `config.example.toml` に記載されています。
 
-[limits]
-max_read_lines = 400
-max_output_bytes = 60000
-max_calls_per_minute = 30
-cmd_timeout_seconds = 60
+### ステップ 3: デーモンを起動する
 
-[exec]
-mode = "docker"            # "docker" | "allowlist" | "off"
-allowlist = ["git status", "git diff", "pytest"]
-docker_network = "none"
-workspace_mount = "ro"
+```
+hoseki serve --config ./config.toml
+```
 
-[secrets]
-deny_globs = [".env", "*.pem", "id_rsa*"]
-````
+次のような行が表示され、プロセスが動き続けていれば成功です。
 
-### ステップ 2: デーモンを起動する
+```
+hoseki 0.1.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+```
 
-````
-python3 -m hoseki --config config.toml
-````
+このターミナルは開いたままにしてください。**承認プロンプトはここに表示されます。** 認証トークンは `~/.hoseki/token` にあります。
 
-初回起動時に、hoseki はランダムな認証トークンを生成し、その保存先を表示します。このトークンは、拡張機能に一度だけ貼り付けます。
+### ステップ 4: デーモンを検証する
 
-### ステップ 3: 拡張機能をインストールする
+別のターミナルで実行します。
+
+```
+export TOKEN=$(cat ~/.hoseki/token)
+export HOSEKI=http://127.0.0.1:8765
+
+curl -s $HOSEKI/v1/health | jq
+
+# パスジェイルの確認: これは必ず失敗しなければなりません
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"read_file","args":{"path":"../../etc/passwd"}}' \
+     $HOSEKI/v1/call | jq
+```
+
+1 つ目は `{"ok": true, "service": "hoseki", ...}` と表示されます。2 つ目は `"ok": false` となり、パスがワークスペースルートの外に解決されるというエラーが表示されるはずです。**ファイルの中身が表示された場合は、ここで中止してください。ジェイルが壊れています。**
+
+### ステップ 5: 拡張機能を読み込む
 
 1. Chromium 系ブラウザで `chrome://extensions` を開き、**デベロッパーモード**を有効にします。
 2. **パッケージ化されていない拡張機能を読み込む**をクリックし、`extension/` フォルダを選択します。
-3. 拡張機能のポップアップを開いてトークンを貼り付け、ステータスが **connected** になっていることを確認します。
+3. Hoseki のポップアップを開き、**Daemon URL** に `http://127.0.0.1:8765` を入力し、**Bearer token** に `~/.hoseki/token` の中身を貼り付けて、**Save** をクリックします。
+4. **Check health** をクリックします。`{"ok": true, ...}` と表示されれば成功です。
 
-### ステップ 4: プリアンブルを貼り付ける
+### ステップ 6: チャットを開いてプリアンブルを貼り付ける
 
-対応サイトで新しいチャットを開始し、[`preamble.md`](preamble.md) の内容を貼り付けます（ポップアップの **Copy preamble** ボタンでもコピーできます）。約 600 語以内に収めてあるので、無料枠のコンテキスト制限にも余裕で収まります。
+1. [chat.z.ai](https://chat.z.ai)（GLM）または [kimi.com](https://kimi.com) を開きます。開発者ツール（F12）のコンソールに `[Hoseki] content script active for ...` と表示されるはずです。
+2. ポップアップの **Copy preamble** をクリックし、**最初のメッセージ**として貼り付けて送信します。
 
-### ステップ 5: 話しかけてみる
+### ステップ 7: 話しかけてみる
 
 まずは小さなことから試してみましょう。
 
-> プロジェクトのトップレベルのファイルを一覧表示して、メインのエントリーポイントを読んでください。
+> List the files in my workspace and read the first 20 lines of the only file you find.
+> （ワークスペース内のファイルを一覧表示して、見つかった唯一のファイルの最初の 20 行を読んでください。）
 
-モデルがツールブロックを出力すると、拡張機能がそれをデーモン経由で実行し、結果がチャットの入力欄に入ります。内容を確認してから送信してください。
+モデルが `tool` ブロックを出力すると、チャット画面の右下に緑のチェック付きの小さなオーバーレイが表示され、`tool_result` ブロックがチャットの入力欄に入ります。**送信はあなた自身が押します。** 自動で送信されることはありません。
+
+書き込み（と、有効にした場合はコマンド）はデーモンを一時停止させ、デーモンのターミナルでの `y`/`N` の入力を待ちます。
+
+> 使い捨てフォルダで一通り動くようになったら、普段の使い方は `hoseki serve` を起動し、新しいチャットでプリアンブルを貼り付け、デーモンのターミナルで承認を見守るだけです。書き込みの承認フロー、コマンドの有効化、トラブルシューティングは [docs/RUNNING.ja.md](docs/RUNNING.ja.md) を参照してください。
 
 ## 🔌 ツール呼び出しプロトコル
 
@@ -225,9 +251,9 @@ python3 -m hoseki --config config.toml
 
 ## 🧪 テスト
 
-````
+```
 pytest tests/
-````
+```
 
 テストスイートは、パスジェイルのすり抜け（`..`、絶対パス、シンボリックリンク）、認証と Origin のチェック、ツールのスキーマ検証、差分適用の失敗ケースをカバーしています。大切なコードに hoseki を使う前に、パスジェイルのテストを必ず読んでください。
 

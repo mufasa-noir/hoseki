@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2><b>Hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
+<h2><b>hoseki: Give Free Web Chat Models Hands on Your Local Machine</b></h2>
 
 </div>
 
@@ -14,12 +14,12 @@
 
 <div align="center">
 
-[English](README.md) | [日本語](README_ja.md)
+[English](README.md) | [日本語](README.ja.md)
 
 </div>
 
 <div align="center">
-  <img src="figures/logo.png" alt="hoseki logo" width="300">
+  <img src="figures/logo.png" alt="hoseki: free web chat models, hands on your local machine" width="800">
 </div>
 
 > hoseki is a **local bridge** that lets free web chat UIs (Kimi, GLM, and friends) read, search, and edit files in your project folder, and run commands with your approval. **No LLM API keys, no paid plans.**
@@ -38,7 +38,7 @@ It is made of three small pieces:
 
 ## 🏗️ Architecture
 
-````
+```
 ┌──────────────────────────────┐
 │         Chat web UI          │
 │         (Kimi, z.ai)         │
@@ -71,7 +71,7 @@ It is made of three small pieces:
 │      hoseki mcp (stdio)      │
 │      JSON-RPC, same ctx      │
 └──────────────────────────────┘
-````
+```
 
 | Module        | Role                                                                    |
 | ------------- | ----------------------------------------------------------------------- |
@@ -117,71 +117,96 @@ hoseki is meant to be pointed at **untrusted code**, so it assumes file contents
 
 ## 🚀 Getting Started
 
-### Installation
+> **Want the slow, safe version?** [docs/RUNNING.md](docs/RUNNING.md) walks through every step with a checkpoint after each one. What follows is the short version.
 
-1. Install Python 3.11+, then clone the repo and install the dependencies:
+### Prerequisites
 
-````
+- Python 3.11 or newer (`python3 --version`) and `git`
+- (Optional) [Docker](https://www.docker.com/) for the command sandbox, and [`ripgrep`](https://github.com/BurntSushi/ripgrep) for faster `grep`
+- `curl` and `jq` if you want to run the verification commands below
+
+### Step 1: Install
+
+```
 git clone https://github.com/mufasa-noir/hoseki.git
 cd hoseki
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
-````
+hoseki --version                   # should print: hoseki 0.1.0
+```
 
-2. (Optional) Install [`ripgrep`](https://github.com/BurntSushi/ripgrep) for faster `grep`, and [Docker](https://www.docker.com/) if you want sandboxed command execution.
+### Step 2: Configure
 
-### Step 1: Configure
+```
+cp config.example.toml config.toml
+```
 
-All settings live in `config.toml`. At minimum, set the workspace root to the project you want the model to see:
+Then set the workspace root, the one setting you need to start:
 
-````toml
+```toml
 [workspace]
-root = "/home/you/projects/target"
+root = "/absolute/path/to/a/throwaway/folder"
+```
 
-[server]
-host = "127.0.0.1"
-port = 8765
+> Start with a throwaway folder (a directory with a file or two), **not** real code. Every other setting (limits, command allow-list, secrets deny-list) is documented in `config.example.toml`.
 
-[limits]
-max_read_lines = 400
-max_output_bytes = 60000
-max_calls_per_minute = 30
-cmd_timeout_seconds = 60
+### Step 3: Start the Daemon
 
-[exec]
-mode = "docker"            # "docker" | "allowlist" | "off"
-allowlist = ["git status", "git diff", "pytest"]
-docker_network = "none"
-workspace_mount = "ro"
+```
+hoseki serve --config ./config.toml
+```
 
-[secrets]
-deny_globs = [".env", "*.pem", "id_rsa*"]
-````
+You should see a line like this, and the process should keep running:
 
-### Step 2: Start the Daemon
+```
+hoseki 0.1.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+```
 
-````
-python3 -m hoseki --config config.toml
-````
+Leave this terminal open: **approval prompts appear here.** Your auth token lives at `~/.hoseki/token`.
 
-On first start, hoseki generates a random auth token and prints where it was saved. You'll paste this token into the extension once.
+### Step 4: Verify the Daemon
 
-### Step 3: Install the Extension
+In a second terminal:
+
+```
+export TOKEN=$(cat ~/.hoseki/token)
+export HOSEKI=http://127.0.0.1:8765
+
+curl -s $HOSEKI/v1/health | jq
+
+# the path jail check: this one MUST fail
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"read_file","args":{"path":"../../etc/passwd"}}' \
+     $HOSEKI/v1/call | jq
+```
+
+The first call prints `{"ok": true, "service": "hoseki", ...}`. The second must print `"ok": false` with an error saying the path resolves outside the workspace root. **If it prints file contents instead, stop: the jail is broken.**
+
+### Step 5: Load the Extension
 
 1. Open `chrome://extensions` in a Chromium-based browser and enable **Developer mode**.
 2. Click **Load unpacked** and select the `extension/` folder.
-3. Open the extension popup, paste your token, and confirm the status shows **connected**.
+3. Open the Hoseki popup, set **Daemon URL** to `http://127.0.0.1:8765`, paste the contents of `~/.hoseki/token` into **Bearer token**, and click **Save**.
+4. Click **Check health**. It must print `{"ok": true, ...}`.
 
-### Step 4: Paste the Preamble
+### Step 6: Open a Chat and Paste the Preamble
 
-Start a new chat on a supported site and paste the contents of [`preamble.md`](preamble.md) (or use the **Copy preamble** button in the popup). It's under ~600 words so it fits comfortably in free-tier context limits.
+1. Open [chat.z.ai](https://chat.z.ai) (GLM) or [kimi.com](https://kimi.com). In DevTools (F12) → Console you should see `[Hoseki] content script active for ...`.
+2. In the popup, click **Copy preamble**, paste it as your **first message**, and send it.
 
-### Step 5: Ask Away
+### Step 7: Ask Away
 
 Try something small first:
 
-> List the top-level files in the project, then read the main entry point.
+> List the files in my workspace and read the first 20 lines of the only file you find.
 
-The model will emit a tool block, the extension will run it through the daemon, and the result lands in the chat input for you to review and send.
+The model emits a `tool` block, a small overlay appears at the bottom right of the chat showing a green check, and a `tool_result` block lands in the chat input. **You press send yourself.** Nothing is sent automatically.
+
+Writes (and commands, if you enable them) pause the daemon and wait for your `y`/`N` in the daemon terminal.
+
+> Once everything works on the throwaway folder, daily use is just `hoseki serve`, a fresh chat with the preamble, and watching the daemon terminal for approvals. See [docs/RUNNING.md](docs/RUNNING.md) for the write-approval walkthrough, enabling commands, and troubleshooting.
 
 ## 🔌 Tool-Call Protocol
 
@@ -225,9 +250,9 @@ By default the flow is **semi-automatic**: results are inserted into the input b
 
 ## 🧪 Testing
 
-````
+```
 pytest tests/
-````
+```
 
 The test suite covers path-jail escapes (`..`, absolute paths, symlinks), auth and origin checks, tool schema validation, and diff-application failures. Please read the path-jail tests before trusting hoseki with code you care about.
 
