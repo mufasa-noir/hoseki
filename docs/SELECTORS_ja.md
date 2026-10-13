@@ -2,7 +2,7 @@
 
 <h2><b>セレクターの探し方と設定方法</b></h2>
 
-[English](SELECTORS.md) | [日本語](SELECTORS.ja.md)
+[English](SELECTORS.md) | [日本語](SELECTORS_ja.md)
 
 </div>
 

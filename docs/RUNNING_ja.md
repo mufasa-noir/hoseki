@@ -2,7 +2,7 @@
 
 <h2><b>Hoseki の動かし方: ステップバイステップ</b></h2>
 
-[English](RUNNING.md) | [日本語](RUNNING.ja.md)
+[English](RUNNING.md) | [日本語](RUNNING_ja.md)
 
 </div>
 
@@ -183,7 +183,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 > **チェックポイント:** その行が表示される。表示されない場合は、コンテンツスクリプトが読み込まれていません。タブを再読み込みするか、`chrome://extensions` で拡張機能を再読み込みしてください（Firefox は `about:debugging`）。
 >
-> その行は表示されるのに、モデルがツールブロックを出力しても何も起きない場合は、サイトのセレクターの更新が必要な可能性があります。[SELECTORS.ja.md](SELECTORS.ja.md) を参照してください。
+> その行は表示されるのに、モデルがツールブロックを出力しても何も起きない場合は、サイトのセレクターの更新が必要な可能性があります。[SELECTORS_ja.md](SELECTORS_ja.md) を参照してください。
 
 ## ステップ 8: プリアンブルを貼り付ける
 
@@ -310,6 +310,6 @@ allowlist = [ "ls" ]
 | コンソールに `[Hoseki] content script active` が出ない  | チャットのタブ、または `chrome://extensions` で拡張機能を再読み込みしてください。 |
 | ジェイルの確認でファイルの中身が表示される              | **中止してください。** パスジェイルが壊れています。本物のコードには使わないでください。 |
 | コマンドが `command not in allow-list` で失敗する       | 許可リストにないものは想定どおりです。`[commands]` にプレフィックスを追加してください（ステップ 11）。 |
-| モデルがツールブロックを出力しても何も起きない | サイトのセレクターが古くなっている可能性があります。[SELECTORS.ja.md](SELECTORS.ja.md) を参照してください。 |
+| モデルがツールブロックを出力しても何も起きない | サイトのセレクターが古くなっている可能性があります。[SELECTORS_ja.md](SELECTORS_ja.md) を参照してください。 |
 | ポップアップまたはオーバーレイに `origin not allowed by daemon` と表示される | デーモンがブラウザの拡張機能のオリジン（`chrome-extension://<id>` または `moz-extension://<uuid>`）を拒否しています。デーモンの許可オリジンに追加してください。 |
 | Firefox: `[Hoseki] content script active` の行が出ない | サイトへのアクセスが許可されていない可能性があります。`about:addons` → Hoseki → **権限** を開いてください。一時的なアドオンがまだ読み込まれているかも確認してください。 |

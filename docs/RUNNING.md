@@ -2,7 +2,7 @@
 
 <h2><b>Running Hoseki: Step-by-Step</b></h2>
 
-[English](RUNNING.md) | [日本語](RUNNING.ja.md)
+[English](RUNNING.md) | [日本語](RUNNING_ja.md)
 
 </div>
 
