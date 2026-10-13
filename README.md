@@ -19,10 +19,10 @@
 </div>
 
 <div align="center">
-  <img src="figures/logo.png" alt="hoseki: free web chat models, hands on your local machine" width="800">
+  <img src="figures/logo.png" alt="Hoseki: free web chat models, hands on your local machine" width="800">
 </div>
 
-> Hoseki is a **local bridge** that lets free web chat UIs (Kimi, GLM, and friends) read, search, and edit files in your project folder, and run commands with your approval. **No LLM API keys, no paid plans.**
+> Hoseki is a **local bridge** that lets free web chat UIs (Kimi, GLM, DeepSeek, and more) read, search, and edit files in your project folder, and run commands with your approval. **No LLM API keys, no paid plans.**
 
 ## 📜 Introduction
 
@@ -41,7 +41,7 @@ It is made of three small pieces:
 ```
 ┌──────────────────────────────┐
 │         Chat web UI          │
-│         (Kimi, z.ai)         │
+│  (Kimi, z.ai, DeepSeek, …)   │
 └──────────────────────────────┘
                 ▲
                 │ DOM adapters
@@ -102,12 +102,12 @@ Reads are auto-approved. Writes and commands **never** are.
 
 ## 🔒 Security Model
 
-hoseki is meant to be pointed at **untrusted code**, so it assumes file contents are hostile and may contain prompt injection.
+Hoseki is meant to be pointed at **untrusted code**, so it assumes file contents are hostile and may contain prompt injection.
 
 - **Path jail**: every path is resolved and verified to sit inside the workspace root. `..` escapes, absolute paths outside the root, and symlinks that resolve outside it are rejected.
 - **Localhost only**: the daemon binds to `127.0.0.1`, requires a random bearer token (stored with `0600` permissions), and validates `Origin`/`Host` headers to defend against DNS rebinding.
 - **Human approval gate**: writes and commands pause for a local y/n prompt showing the full diff or command. Nothing in the model's output or a file's contents can pre-approve or bypass it.
-- **Command sandbox**: `run_cmd` is deny-by-default. It can run inside a Docker container with no network and the workspace mounted read-only. If Docker is unavailable, hoseki refuses to run commands unless you explicitly set `unsafe_host_exec = true`.
+- **Command sandbox**: `run_cmd` is deny-by-default. It can run inside a Docker container with no network and the workspace mounted read-only. If Docker is unavailable, Hoseki refuses to run commands unless you explicitly set `unsafe_host_exec = true`.
 - **Secrets denylist**: `.env`, `*.pem`, `id_rsa*`, and similar files are unreadable by default.
 - **Limits**: max read size, max output size, max calls per minute, and max command runtime are all configurable.
 - **Audit log**: every tool call, its arguments, the approval decision, and a result summary are appended to a local JSONL log.
@@ -193,7 +193,7 @@ The first call prints `{"ok": true, "service": "hoseki", ...}`. The second must 
 
 ### Step 6: Open a Chat and Paste the Preamble
 
-1. Open [chat.z.ai](https://chat.z.ai) (GLM) or [kimi.com](https://kimi.com). In DevTools (F12) → Console you should see `[Hoseki] content script active for ...`.
+1. Open a supported chat: [chat.z.ai](https://chat.z.ai) (GLM), [kimi.com](https://kimi.com), or [chat.deepseek.com](https://chat.deepseek.com) (DeepSeek). In DevTools (F12) → Console you should see `[Hoseki] content script active for ...`.
 2. In the popup, click **Copy preamble**, paste it as your **first message**, and send it.
 
 ### Step 7: Ask Away
@@ -234,15 +234,26 @@ A few rules keep this reliable:
 - The extension only parses the **latest** assistant message, ignores echoed or quoted text, and dedupes by `(message id, call id)` so nothing runs twice.
 - Long results are split across messages with `part 1/3` markers to stay under chat length caps.
 
-## 🌐 Site Adapters
+## 🌐 Supported Models & Site Adapters
 
-Each chat site gets an adapter in config (not hardcoded) providing CSS selectors for the assistant message container, the "finished streaming" signal, the input element, and the send button.
+Hoseki works with any web chat UI that has a text input and renders fenced code blocks, because all it does is watch the page, read `tool` blocks, and type results back. A per-site **adapter** tells the extension where the pieces live: CSS selectors for the assistant message container, the "finished streaming" signal, the input element, and the send button. Adapters are config, not hardcoded.
 
-| Site                  | Status                                      |
-| --------------------- | ------------------------------------------- |
-| `chat.z.ai` (GLM)     | Best-effort starting point, **verify selectors** |
-| `kimi.com`            | Best-effort starting point, **verify selectors** |
-| Anything else         | Use the template in `extension/adapters/`   |
+**Free models only.** Every site below has a free tier (usually with an account). Free-tier models, modes, and limits change often, so check each site for what's on offer today.
+
+| Site                  | Model family                            | Free-tier notes                      | Adapter                                              |
+| --------------------- | --------------------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `chat.z.ai`           | GLM                                     | Free with an account                 | ✅ Included (best-effort, **verify selectors**)      |
+| `kimi.com`            | Kimi                                    | Free tier; exposed models vary       | ✅ Included (best-effort, **verify selectors**)      |
+| `chat.deepseek.com`   | DeepSeek V4 (Instant and Expert modes)  | Free with an account                 | ✅ Included (best-effort, **verify selectors**)      |
+| `chat.qwen.ai`        | Qwen                                    | Free with an account                 | 🧩 Not yet, use the template                         |
+| `gemini.google.com`   | Gemini                                  | Free with a Google account, daily limits | 🧩 Not yet, use the template                     |
+| `chat.mistral.ai`     | Mistral (Le Chat)                       | Free tier                            | 🧩 Not yet, use the template                         |
+| `grok.com`            | Grok                                    | Free tier, daily caps                | 🧩 Not yet, use the template                         |
+| `chatgpt.com`         | ChatGPT                                 | Free tier                            | 🧩 Not yet, use the template                         |
+| `claude.ai`           | Claude                                  | Free plan, usage limits              | 🧩 Not yet, use the template                         |
+| Anything else         | n/a                                     | n/a                                  | Use the template in `extension/adapters/`            |
+
+✅ means an adapter ships with Hoseki. 🧩 means the site should work once someone writes an adapter for it. Contributions welcome.
 
 Chat UIs change their DOM without notice, so expect to maintain these. If one breaks, grab the relevant HTML from your browser's dev tools and update the selectors.
 
@@ -254,17 +265,18 @@ By default the flow is **semi-automatic**: results are inserted into the input b
 pytest tests/
 ```
 
-The test suite covers path-jail escapes (`..`, absolute paths, symlinks), auth and origin checks, tool schema validation, and diff-application failures. Please read the path-jail tests before trusting hoseki with code you care about.
+The test suite covers path-jail escapes (`..`, absolute paths, symlinks), auth and origin checks, tool schema validation, and diff-application failures. Please read the path-jail tests before trusting Hoseki with code you care about.
 
 ## 💡 Important Considerations
 
 - **Terms of service**: automating a consumer chat UI may violate a provider's terms, and some sites detect it. The default semi-automatic flow (you read and click send) is lower risk than auto-submit loops. Check each site's terms yourself.
+- **Your code leaves your machine**: everything the model reads is sent to that provider's servers. Don't point Hoseki at code you aren't allowed to share (private bug-bounty targets under NDA, for example), and read each provider's data policy first.
 - **Free tiers have limits**: message length caps and rate limits will bite on big files. Prefer `grep` and line ranges over reading whole files, and ask for small patches instead of rewrites.
-- **Model quality varies**: not every free model emits clean tool blocks. If one keeps producing malformed JSON, try another or tighten the preamble.
+- **Model quality varies**: not every free model emits clean tool blocks. If one keeps producing malformed JSON, try another or tighten the preamble. Fast or instant modes suit quick loops; expert or thinking modes suit harder review.
 - **Don't expose the daemon to the internet**: if you tunnel it for a remote connector, you're publishing a tool server that can touch your files. Use a strong token and a locked-down root.
-- **Hostile repos**: only run hoseki against untrusted code with `exec.mode = "docker"` or `"off"`.
+- **Hostile repos**: only run Hoseki against untrusted code with `exec.mode = "docker"` or `"off"`.
 
-> **Disclaimer:** hoseki is a tool for your own machine and your own projects. You are responsible for what you point it at and what you approve. Only test code you are authorized to test.
+> **Disclaimer:** Hoseki is a tool for your own machine and your own projects. You are responsible for what you point it at and what you approve. Only test code you are authorized to test.
 
 ## 🗺️ Roadmap
 

@@ -1,12 +1,12 @@
 <div align="center">
 
-<h2><b>Running hoseki: Step-by-Step</b></h2>
+<h2><b>Running Hoseki: Step-by-Step</b></h2>
 
 [English](RUNNING.md) | [日本語](RUNNING.ja.md)
 
 </div>
 
-Follow these steps in order. Each step ends with a **checkpoint**, so don't move on until it passes. Do all of this on a **throwaway folder** first, and only point hoseki at real code once everything below works.
+Follow these steps in order. Each step ends with a **checkpoint**, so don't move on until it passes. Do all of this on a **throwaway folder** first, and only point Hoseki at real code once everything below works.
 
 You'll use two terminals:
 
@@ -83,7 +83,7 @@ hoseki serve --config ./config.toml
 > **Checkpoint:** you see this line and the process stays running (no exit):
 >
 > ```text
-> hoseki 0.1.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+> Hoseki 0.1.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
 > ```
 
 **Keep this terminal open.** Approval prompts will appear here later. Do the rest of the steps in a second terminal.
@@ -136,8 +136,8 @@ In Chrome (or Edge/Brave):
 1. Open `chrome://extensions`.
 2. Toggle **Developer mode** on (top-right).
 3. Click **Load unpacked**.
-4. Select the `extension/` folder inside your hoseki clone.
-5. Click the hoseki icon in the toolbar to open the popup.
+4. Select the `extension/` folder inside your Hoseki clone.
+5. Click the Hoseki icon in the toolbar to open the popup.
 6. Fill in:
    - **Daemon URL:** `http://127.0.0.1:8765`
    - **Bearer token:** run `cat ~/.hoseki/token` in terminal #2 and paste the output.
@@ -156,8 +156,11 @@ Then click **Status**.
 
 Open a new tab to a supported chat:
 
-- <https://chat.z.ai> (GLM), or
+- <https://chat.z.ai> (GLM)
 - <https://kimi.com>
+- <https://chat.deepseek.com> (DeepSeek)
+
+Other chats need an adapter first (see the README).
 
 Open DevTools (F12) → **Console**. Look for:
 
@@ -169,7 +172,7 @@ Open DevTools (F12) → **Console**. Look for:
 
 ## Step 8: Paste the Preamble
 
-In the hoseki popup, click **Copy preamble**. Then paste it into the chat as your first message and send it.
+In the Hoseki popup, click **Copy preamble**. Then paste it into the chat as your first message and send it.
 
 > **Checkpoint:** the chat has the preamble as message #1. The model may reply "understood" or just acknowledge.
 
@@ -182,7 +185,7 @@ Still in the chat, send this:
 What should happen:
 
 1. The model replies with a fenced `tool` block, e.g. `` ```tool {"id":"c1","name":"list_dir",...} ``.
-2. Within a second or two, a floating hoseki overlay appears at the bottom right of the chat, showing `✓ c1: ...`.
+2. Within a second or two, a floating Hoseki overlay appears at the bottom right of the chat, showing `✓ c1: ...`.
 3. A `tool_result` block is inserted into the chat input box.
 
 > **Checkpoint:** the overlay shows a green check and the input box is populated with a `tool_result` block.
@@ -285,5 +288,5 @@ You do not need to redo Steps 3 to 6 unless you change project folders or reinst
 | Popup says `network error`                        | The daemon isn't running. Start it (Step 4).                                  |
 | Popup says `unauthorized`                         | Token pasted wrong. Re-run `cat ~/.hoseki/token` and paste it again.          |
 | No `[Hoseki] content script active` console line  | Reload the chat tab, or reload the extension at `chrome://extensions`.        |
-| Jail check prints file contents                   | **Stop.** The path jail is broken. Do not point hoseki at real code.          |
+| Jail check prints file contents                   | **Stop.** The path jail is broken. Do not point Hoseki at real code.          |
 | Commands fail with `command not in allow-list`    | Expected for anything not on the allow-list. Add a prefix in `[commands]` (Step 11). |
