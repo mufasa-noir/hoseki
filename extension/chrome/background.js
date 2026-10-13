@@ -1,6 +1,11 @@
-// Background service worker. All localhost fetches go through here because
+// Background script. Runs as a service worker on Chrome MV3 and as an
+// event page on Firefox MV3. All localhost fetches go through here because
 // page-level fetch to localhost is unreliable under site CSP and mixed
 // content rules.
+//
+// Storage calls use the callback form, which works on both Chrome and
+// Firefox. Do NOT rely on chrome.storage returning a promise — that is
+// Chrome-only.
 
 const DEFAULT_SETTINGS = {
   daemonUrl: "http://127.0.0.1:8765",
@@ -10,13 +15,25 @@ const DEFAULT_SETTINGS = {
   maxMessageChars: 3500
 };
 
+function storageGet(defaults) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(defaults, (result) => resolve(result || defaults));
+  });
+}
+
+function storageSet(patch) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(patch, () => resolve());
+  });
+}
+
 async function getSettings() {
-  const stored = await chrome.storage.local.get(DEFAULT_SETTINGS);
+  const stored = await storageGet(DEFAULT_SETTINGS);
   return { ...DEFAULT_SETTINGS, ...stored };
 }
 
 async function setSettings(patch) {
-  await chrome.storage.local.set(patch);
+  await storageSet(patch);
 }
 
 async function callDaemon(payload) {
@@ -93,6 +110,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case "hoseki:setSettings":
         await setSettings(msg.patch || {});
         sendResponse({ ok: true });
+        return;
+      case "hoseki:whichSite":
+        sendResponse({ ok: true, host: _sender?.tab?.url || null });
         return;
       default:
         sendResponse({ ok: false, error: "unknown message type" });

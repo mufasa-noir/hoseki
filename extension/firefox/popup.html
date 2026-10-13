@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hoseki</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <h1>Hoseki</h1>
+
+  <div id="site" class="site">Detecting tab…</div>
+
+  <label>Daemon URL
+    <input id="daemonUrl" type="text" placeholder="http://127.0.0.1:8765" />
+  </label>
+
+  <label>Bearer token
+    <input id="token" type="password" placeholder="paste ~/.hoseki/token here" />
+  </label>
+
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="health">Check health</button>
+    <button id="status">Status</button>
+  </div>
+
+  <div id="state" class="state">—</div>
+
+  <hr />
+
+  <label class="check">
+    <input id="autoSend" type="checkbox" />
+    Auto-send the tool_result block (off by default)
+  </label>
+  <div class="warn">
+    Automating a chat site may violate its terms of service. Enable only if
+    you understand and accept that risk. The first time you turn this on you
+    must tick the acknowledgement below.
+  </div>
+  <label class="check">
+    <input id="ack" type="checkbox" />
+    I understand the risk of auto-sending.
+  </label>
+
+  <label>Max chars per message part
+    <input id="maxMessageChars" type="number" min="500" max="20000" step="100" />
+  </label>
+
+  <hr />
+
+  <button id="copyPreamble">Copy preamble</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

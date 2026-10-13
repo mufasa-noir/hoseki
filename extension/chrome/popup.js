@@ -6,6 +6,12 @@ const DEFAULTS = {
   maxMessageChars: 3500
 };
 
+const SUPPORTED_HOSTS = [
+  "chat.z.ai", "z.ai",
+  "kimi.com",
+  "chat.deepseek.com", "deepseek.com"
+];
+
 function send(msg) {
   return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
 }
@@ -17,6 +23,27 @@ async function load() {
   document.getElementById("autoSend").checked = s.autoSend;
   document.getElementById("ack").checked = s.autoSendAcknowledged;
   document.getElementById("maxMessageChars").value = s.maxMessageChars;
+  renderSite();
+}
+
+async function renderSite() {
+  const el = document.getElementById("site");
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
+  if (!tab || !tab.url) {
+    el.textContent = "no active tab";
+    return;
+  }
+  let host;
+  try { host = new URL(tab.url).hostname; } catch { host = ""; }
+  const supported = SUPPORTED_HOSTS.some(
+    (h) => host === h || host.endsWith("." + h)
+  );
+  el.textContent = supported
+    ? `✓ adapter available for ${host}`
+    : `— no adapter for ${host || "(unknown)"}`;
+  el.style.color = supported ? "#0a6b2c" : "#555";
+  el.style.background = supported ? "#e8f8ec" : "#f3f3f3";
 }
 
 function setState(text) {

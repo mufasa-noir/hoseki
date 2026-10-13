@@ -4,13 +4,27 @@
 // into the chat input.
 //
 // Deliberately conservative: on parse error or ambiguity, do nothing.
+//
+// Supported sites: chat.z.ai (GLM), kimi.com, chat.deepseek.com.
+// Selector verification status is noted per-adapter below. If selectors
+// have drifted, run `hosekiDiagnose()` in the console to find new ones.
 
 (function () {
   "use strict";
 
+  // ------------------------------------------------------------------------
+  // Adapters. Selectors are best-effort and MUST be verified after every
+  // site UI change. If an adapter's selectors stop matching, the content
+  // script does nothing on that site — it never runs stale tool calls.
+  //
+  // `verified` is the ISO date someone last confirmed the selectors against
+  // a live page. "never" means unverified best-effort guess. If this is a
+  // site you use, verify it and update this field.
+  // ------------------------------------------------------------------------
   const ADAPTERS = {
     "chat.z.ai": {
-      name: "GLM / z.ai (best-effort)",
+      name: "GLM / z.ai",
+      verified: "never",
       assistantMessage:
         "[data-message-role='assistant'], .chat-assistant, .message-assistant",
       messageIdAttr: "data-message-id",
@@ -21,8 +35,10 @@
       stopButton:
         "button[aria-label*='Stop' i], button[data-stop='true']"
     },
+
     "kimi.com": {
-      name: "Kimi (best-effort)",
+      name: "Kimi",
+      verified: "never",
       assistantMessage:
         ".segment-assistant, [data-role='assistant'], .chat-message.assistant",
       messageIdAttr: "data-message-id",
@@ -30,6 +46,31 @@
       input: "textarea, [contenteditable='true'][role='textbox']",
       sendButton: "button[type='submit'], .send-button",
       stopButton: "button[aria-label*='Stop' i], .stop-button"
+    },
+
+    "chat.deepseek.com": {
+      name: "DeepSeek",
+      verified: "never",
+      assistantMessage: [
+        "[data-message-author-role='assistant']",
+        "[data-role='assistant']",
+        ".ds-markdown",
+        "div[class*='ds-markdown']"
+      ].join(", "),
+      messageIdAttr: "data-message-id",
+      streamingIndicator: "[class*='thinking'], [class*='streaming']",
+      input: "textarea#chat-input, textarea[placeholder*='Message' i], textarea",
+      sendButton: [
+        "button[type='submit']",
+        "div[role='button'][aria-disabled]",
+        "div[role='button'][class*='send' i]",
+        "[data-testid='send-button']"
+      ].join(", "),
+      stopButton: [
+        "button[aria-label*='Stop' i]",
+        "div[role='button'][aria-label*='Stop' i]",
+        "[data-testid='stop-button']"
+      ].join(", ")
     }
   };
 
@@ -42,7 +83,11 @@
   }
 
   const ADAPTER = adapterForHost(location.hostname);
-  if (!ADAPTER) return;
+  if (!ADAPTER) {
+    console.log("[Hoseki] no adapter for", location.hostname,
+                "— supported:", Object.keys(ADAPTERS).join(", "));
+    return;
+  }
 
   // Dedup set of `messageId::callId` we have already processed.
   const seenCalls = new Set();
@@ -53,11 +98,8 @@
 
   // ---------------------------------------------------------------- parsing
 
-  // Find fenced ```tool blocks in `text`. Tolerates a trailing comma and
-  // missing `id`. Returns [] on any hard parse failure — we do not guess.
   function extractToolBlocks(text) {
     const out = [];
-    // We scan for ```tool ... ``` blocks. The trailing fence may be missing.
     const re = /```tool\s*\n([\s\S]*?)(?:```|$)/g;
     let m;
     let i = 0;
@@ -73,15 +115,11 @@
     return out;
   }
 
-  // Strip trailing commas from the outermost JSON object. This is a
-  // best-effort fixup for the common model failure mode; anything else
-  // falls through to JSON.parse and, on error, the block is dropped.
   function stripTrailingCommas(s) {
     return s.replace(/,(\s*[}\]])/g, "$1");
   }
 
   function tryParseSloppy(raw, index) {
-    // Try as-is first.
     let obj = null;
     const attempts = [raw, stripTrailingCommas(raw)];
     for (const attempt of attempts) {
@@ -100,14 +138,12 @@
     return { id, name, args };
   }
 
-  // Extract the message id (from attribute if present, else hash the text).
   function messageIdOf(el) {
     const attr = ADAPTER.messageIdAttr;
     if (attr && el.getAttribute) {
       const v = el.getAttribute(attr);
       if (v) return v;
     }
-    // Fallback: stable-ish hash of the first 200 chars + length.
     const t = (el.textContent || "").slice(0, 200);
     let h = 0;
     for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
@@ -122,10 +158,19 @@
     return false;
   }
 
-  // Return the latest assistant message element, or null.
+  // Return the latest assistant message element that contains a ```tool
+  // fence, or null. This differs from "just take the last match" because on
+  // some sites the assistantMessage selector matches multiple nested nodes;
+  // we want the outermost one that carries the tool block.
   function latestAssistantMessage() {
     const els = document.querySelectorAll(ADAPTER.assistantMessage);
     if (!els.length) return null;
+    // Walk backwards; return the first element whose text contains a
+    // ```tool fence. If none do, return the last one anyway (caller checks).
+    for (let i = els.length - 1; i >= 0; i--) {
+      const t = els[i].innerText || els[i].textContent || "";
+      if (/```tool\b/.test(t)) return els[i];
+    }
     return els[els.length - 1];
   }
 
@@ -144,7 +189,6 @@
       </div>
       <div class="hoseki-body"></div>
       <div class="hoseki-foot">
-        <button class="hoseki-insert">Insert tool_result</button>
         <span class="hoseki-hint"></span>
       </div>
     `;
@@ -198,7 +242,7 @@
       setNativeValue(el, cur + sep + text);
       return true;
     }
-    // contenteditable path: try insertText first, fall back to DOM insert.
+    // contenteditable path
     let ok = false;
     try {
       ok = document.execCommand("insertText", false, text);
@@ -239,32 +283,23 @@
   }
 
   function wrapResultForModel(resp) {
-    // Strip the ``output``/``error`` into a compact object that matches
-    // the tool_result protocol. The id is preserved.
-    let obj;
     if (resp && resp.ok) {
-      obj = {
+      return {
         id: resp.id,
         ok: true,
         output: String(resp.output ?? ""),
         truncated: Boolean(resp.truncated)
       };
-    } else {
-      obj = {
-        id: resp.id,
-        ok: false,
-        error: String((resp && resp.error) || "unknown error")
-      };
     }
-    return obj;
+    return {
+      id: resp.id,
+      ok: false,
+      error: String((resp && resp.error) || "unknown error")
+    };
   }
 
   async function splitAndFormat(results, maxChars) {
-    // Serialise one tool_result JSON per call, then split into chunks so
-    // each fits under typical chat-input caps.
-    const lines = results.map(
-      (r) => JSON.stringify(wrapResultForModel(r))
-    );
+    const lines = results.map((r) => JSON.stringify(wrapResultForModel(r)));
     const chunks = [];
     let cur = "";
     for (const line of lines) {
@@ -278,9 +313,7 @@
     }
     if (cur) chunks.push(cur);
     if (chunks.length <= 1) return chunks;
-    return chunks.map(
-      (c, i) => `[part ${i + 1}/${chunks.length}]\n${c}`
-    );
+    return chunks.map((c, i) => `[part ${i + 1}/${chunks.length}]\n${c}`);
   }
 
   async function handleCompletedMessage(msgEl) {
@@ -290,7 +323,6 @@
 
     const msgId = messageIdOf(msgEl);
 
-    // Filter out calls we've already processed for this message.
     const fresh = blocks.filter((b) => {
       const key = `${msgId}::${b.id}`;
       if (seenCalls.has(key)) return false;
@@ -315,16 +347,14 @@
     );
     showOverlay(summaryLines.join("\n"));
     setOverlayHint(
-      settings?.autoSend
+      settings?.autoSend && settings?.autoSendAcknowledged
         ? "auto-send is ON — review the warning"
         : "review, then press send"
     );
 
-    // Insert each chunk into the input.
     for (let i = 0; i < chunks.length; i++) {
       insertIntoInput(chunks[i]);
       if (i < chunks.length - 1) {
-        // Give frameworks a beat between multi-part inserts.
         await new Promise((r) => setTimeout(r, 50));
       }
     }
@@ -351,7 +381,6 @@
     if (isStreaming()) return;
     const msgId = messageIdOf(el);
     if (msgId === lastProcessedMessageId) return;
-    // Only process if there's a fenced ```tool block present.
     const text = el.innerText || el.textContent || "";
     if (!/```tool\b/.test(text)) return;
     lastProcessedMessageId = msgId;
@@ -362,13 +391,56 @@
 
   const mo = new MutationObserver(onMutations);
   mo.observe(document.body, { childList: true, subtree: true, characterData: true });
-
-  // Also poll every 2s as a fallback for sites that don't fire mutations.
   setInterval(checkForCompletedAssistantMessage, 2000);
 
-  // Manual trigger from the overlay (for debugging).
-  window.addEventListener("hoseki:trigger", checkForCompletedAssistantMessage);
+  // -------------------------------------------------------------- diagnostic
 
-  console.log("[Hoseki] content script active for", location.hostname,
-              "adapter:", ADAPTER.name);
+  // Paste `hosekiDiagnose()` in the console on any chat page. It reports
+  // which selectors in the current adapter match, and dumps the outerHTML
+  // of the first match for each so you can find replacements.
+  window.hosekiDiagnose = function () {
+    const report = {
+      host: location.hostname,
+      adapter: ADAPTER.name,
+      verified: ADAPTER.verified,
+      selectors: {}
+    };
+    for (const [key, sel] of Object.entries({
+      assistantMessage: ADAPTER.assistantMessage,
+      streamingIndicator: ADAPTER.streamingIndicator,
+      input: ADAPTER.input,
+      sendButton: ADAPTER.sendButton,
+      stopButton: ADAPTER.stopButton
+    })) {
+      let el = null;
+      let count = 0;
+      try {
+        count = document.querySelectorAll(sel).length;
+        el = document.querySelector(sel);
+      } catch (e) {
+        report.selectors[key] = { selector: sel, error: String(e) };
+        continue;
+      }
+      report.selectors[key] = {
+        selector: sel,
+        matches: count,
+        sample: el ? el.outerHTML.slice(0, 240) : null
+      };
+    }
+    console.log("%c[Hoseki] diagnostic", "font-weight:bold");
+    console.table(Object.fromEntries(
+      Object.entries(report.selectors).map(([k, v]) => [
+        k, { matches: v.matches ?? "(error)", selector: v.selector }
+      ])
+    ));
+    console.log("full report:", report);
+    return report;
+  };
+
+  console.log(
+    "[Hoseki] content script active on", location.hostname,
+    "— adapter:", ADAPTER.name,
+    "(verified:", ADAPTER.verified + ")",
+    "— run hosekiDiagnose() to check selectors"
+  );
 })();
