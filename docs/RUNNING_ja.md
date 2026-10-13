@@ -131,17 +131,30 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ## ステップ 6: ブラウザ拡張機能を読み込む
 
-Chrome（または Edge/Brave）で次の手順を行います。
+ブラウザごとに 1 つずつビルドがあります。`extension/chrome/`（Chrome、Edge、Brave などの Chromium 系ブラウザ用）と `extension/firefox/`（Firefox 用）です。
+
+### Chrome（または Edge/Brave）
 
 1. `chrome://extensions` を開きます。
 2. 右上の**デベロッパーモード**をオンにします。
 3. **パッケージ化されていない拡張機能を読み込む**をクリックします。
-4. クローンした Hoseki 内の `extension/` フォルダを選択します。
+4. クローンした Hoseki 内の `extension/chrome/` フォルダを選択します。
 5. ツールバーの Hoseki アイコンをクリックして、ポップアップを開きます。
-6. 次を入力します。
-   - **Daemon URL:** `http://127.0.0.1:8765`
-   - **Bearer token:** ターミナル #2 で `cat ~/.hoseki/token` を実行し、出力を貼り付けます。
-7. **Save** をクリックします。
+
+### Firefox
+
+1. `about:debugging#/runtime/this-firefox` を開きます。
+2. **一時的なアドオンを読み込む…**（Load Temporary Add-on…）をクリックし、クローンした Hoseki 内の `extension/firefox/manifest.json` を選択します。一時的なアドオンは Firefox を閉じると削除されるため、次回のセッションでもう一度行ってください。
+3. ツールバーから Hoseki のポップアップを開きます（見当たらない場合は、パズルピースの形の拡張機能メニューから開いてください）。
+
+### その後、どちらのブラウザでも
+
+次を入力します。
+
+- **Daemon URL:** `http://127.0.0.1:8765`
+- **Bearer token:** ターミナル #2 で `cat ~/.hoseki/token` を実行し、出力を貼り付けます。
+
+**Save** をクリックします。
 
 > **チェックポイント:** **Check health** をクリックして、`{"ok": true, ...}` が表示される。表示されない場合は次を確認してください。
 >
@@ -168,7 +181,9 @@ Chrome（または Edge/Brave）で次の手順を行います。
 [Hoseki] content script active for chat.z.ai adapter: GLM / z.ai (best-effort)
 ```
 
-> **チェックポイント:** その行が表示される。表示されない場合は、コンテンツスクリプトが読み込まれていません。タブを再読み込みするか、`chrome://extensions` で拡張機能を再読み込みしてください。
+> **チェックポイント:** その行が表示される。表示されない場合は、コンテンツスクリプトが読み込まれていません。タブを再読み込みするか、`chrome://extensions` で拡張機能を再読み込みしてください（Firefox は `about:debugging`）。
+>
+> その行は表示されるのに、モデルがツールブロックを出力しても何も起きない場合は、サイトのセレクターの更新が必要な可能性があります。[SELECTORS.ja.md](SELECTORS.ja.md) を参照してください。
 
 ## ステップ 8: プリアンブルを貼り付ける
 
@@ -295,3 +310,6 @@ allowlist = [ "ls" ]
 | コンソールに `[Hoseki] content script active` が出ない  | チャットのタブ、または `chrome://extensions` で拡張機能を再読み込みしてください。 |
 | ジェイルの確認でファイルの中身が表示される              | **中止してください。** パスジェイルが壊れています。本物のコードには使わないでください。 |
 | コマンドが `command not in allow-list` で失敗する       | 許可リストにないものは想定どおりです。`[commands]` にプレフィックスを追加してください（ステップ 11）。 |
+| モデルがツールブロックを出力しても何も起きない | サイトのセレクターが古くなっている可能性があります。[SELECTORS.ja.md](SELECTORS.ja.md) を参照してください。 |
+| ポップアップまたはオーバーレイに `origin not allowed by daemon` と表示される | デーモンがブラウザの拡張機能のオリジン（`chrome-extension://<id>` または `moz-extension://<uuid>`）を拒否しています。デーモンの許可オリジンに追加してください。 |
+| Firefox: `[Hoseki] content script active` の行が出ない | サイトへのアクセスが許可されていない可能性があります。`about:addons` → Hoseki → **権限** を開いてください。一時的なアドオンがまだ読み込まれているかも確認してください。 |

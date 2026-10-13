@@ -31,10 +31,10 @@ Top-tier models are often free in a browser tab but locked behind paid API keys 
 It is made of three small pieces:
 
 1. A **local daemon** that exposes filesystem and command tools over HTTP on `127.0.0.1`, with a path jail, token auth, and a human approval gate.
-2. A **browser extension (Manifest V3)** that watches the chat page, detects tool-call blocks in the model's reply, sends them to the daemon, and drops the results back into the chat input.
+2. A **browser extension** (Manifest V3 for Chrome, with a separate Firefox build) that watches the chat page, detects tool-call blocks in the model's reply, sends them to the daemon, and drops the results back into the chat input.
 3. A **prompt preamble** you paste at the start of a chat that teaches the model the tool-call protocol.
 
-> **Status:** Hoseki is under active development and being built in phases (see the [Roadmap](#️-roadmap)). Treat anything not marked as done there as a design target, not a shipped feature.
+> **Status:** All six roadmap phases are implemented (see the [Roadmap](#️-roadmap)). Hoseki is still early software, and site adapters in particular are best-effort: chat UIs change without notice, so expect to refresh selectors now and then (see [Finding and Configuring Selectors](#finding-and-configuring-selectors)).
 
 ## 🏗️ Architecture
 
@@ -186,10 +186,24 @@ The first call prints `{"ok": true, "service": "hoseki", ...}`. The second must 
 
 ### Step 5: Load the Extension
 
-1. Open `chrome://extensions` in a Chromium-based browser and enable **Developer mode**.
-2. Click **Load unpacked** and select the `extension/` folder.
-3. Open the Hoseki popup, set **Daemon URL** to `http://127.0.0.1:8765`, paste the contents of `~/.hoseki/token` into **Bearer token**, and click **Save**.
-4. Click **Check health**. It must print `{"ok": true, ...}`.
+There's one build per browser: `extension/chrome/` for Chrome, Edge, Brave, and other Chromium browsers, and `extension/firefox/` for Firefox.
+
+**Chrome and other Chromium browsers**
+
+1. Open `chrome://extensions` (or your browser's equivalent) and enable **Developer mode**.
+2. Click **Load unpacked** and select the `extension/chrome/` folder.
+
+**Firefox**
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…** and select `extension/firefox/manifest.json`. Temporary add-ons are removed when Firefox closes, so repeat this next session.
+
+**Then, in either browser**
+
+1. Open the Hoseki popup, set **Daemon URL** to `http://127.0.0.1:8765`, paste the contents of `~/.hoseki/token` into **Bearer token**, and click **Save**.
+2. Click **Check health**. It must print `{"ok": true, ...}`.
+
+> If Hoseki doesn't run on a chat site in Firefox, open `about:addons` → Hoseki → **Permissions** and make sure site access is granted.
 
 ### Step 6: Open a Chat and Paste the Preamble
 
@@ -236,7 +250,7 @@ A few rules keep this reliable:
 
 ## 🌐 Supported Models & Site Adapters
 
-Hoseki works with any web chat UI that has a text input and renders fenced code blocks, because all it does is watch the page, read `tool` blocks, and type results back. A per-site **adapter** tells the extension where the pieces live: CSS selectors for the assistant message container, the "finished streaming" signal, the input element, and the send button. Adapters are config, not hardcoded.
+Hoseki works with any web chat UI that has a text input and renders fenced code blocks, because all it does is watch the page, read `tool` blocks, and type results back. A per-site **adapter** tells the extension where the pieces live: CSS selectors for the assistant message container, the "finished streaming" signal, the input element, and the send button. Adapters are plain data entries (the `ADAPTERS` object in each build's `content.js`), kept separate from the logic.
 
 **Free models only.** Every site below has a free tier (usually with an account). Free-tier models, modes, and limits change often, so check each site for what's on offer today.
 
@@ -245,19 +259,31 @@ Hoseki works with any web chat UI that has a text input and renders fenced code 
 | `chat.z.ai`           | GLM                                     | Free with an account                 | ✅ Included (best-effort, **verify selectors**)      |
 | `kimi.com`            | Kimi                                    | Free tier; exposed models vary       | ✅ Included (best-effort, **verify selectors**)      |
 | `chat.deepseek.com`   | DeepSeek V4 (Instant and Expert modes)  | Free with an account                 | ✅ Included (best-effort, **verify selectors**)      |
-| `chat.qwen.ai`        | Qwen                                    | Free with an account                 | 🧩 Not yet, use the template                         |
-| `gemini.google.com`   | Gemini                                  | Free with a Google account, daily limits | 🧩 Not yet, use the template                     |
-| `chat.mistral.ai`     | Mistral (Le Chat)                       | Free tier                            | 🧩 Not yet, use the template                         |
-| `grok.com`            | Grok                                    | Free tier, daily caps                | 🧩 Not yet, use the template                         |
-| `chatgpt.com`         | ChatGPT                                 | Free tier                            | 🧩 Not yet, use the template                         |
-| `claude.ai`           | Claude                                  | Free plan, usage limits              | 🧩 Not yet, use the template                         |
-| Anything else         | n/a                                     | n/a                                  | Use the template in `extension/adapters/`            |
+| `chat.qwen.ai`        | Qwen                                    | Free with an account                 | 🧩 Not yet, add one (see below)                         |
+| `gemini.google.com`   | Gemini                                  | Free with a Google account, daily limits | 🧩 Not yet, add one (see below)                     |
+| `chat.mistral.ai`     | Mistral (Le Chat)                       | Free tier                            | 🧩 Not yet, add one (see below)                         |
+| `grok.com`            | Grok                                    | Free tier, daily caps                | 🧩 Not yet, add one (see below)                         |
+| `chatgpt.com`         | ChatGPT                                 | Free tier                            | 🧩 Not yet, add one (see below)                         |
+| `claude.ai`           | Claude                                  | Free plan, usage limits              | 🧩 Not yet, add one (see below)                         |
+| Anything else         | n/a                                     | n/a                                  | Add an `ADAPTERS` entry (see below)            |
 
 ✅ means an adapter ships with Hoseki. 🧩 means the site should work once someone writes an adapter for it. Contributions welcome.
 
 Chat UIs change their DOM without notice, so expect to maintain these. If one breaks, grab the relevant HTML from your browser's dev tools and update the selectors.
 
 By default the flow is **semi-automatic**: results are inserted into the input box and **you** press send. An optional auto-send toggle exists, off by default.
+
+### Finding and Configuring Selectors
+
+Each adapter is an entry in the `ADAPTERS` object near the top of `extension/chrome/content.js` and `extension/firefox/content.js` (keep the two in sync). The short version:
+
+1. Open the chat site, press **F12**, and use the element picker (**Ctrl+Shift+C**) on the newest assistant reply. Walk up to the element that wraps one whole reply.
+2. Test candidate selectors in the DevTools Console with `$$("selector")`. `assistantMessage` must match **one element per assistant reply**, and the **last** match must be the newest reply.
+3. Do the same for `input` (the box you type in) and `sendButton`. While the model is streaming, check `streamingIndicator` and `stopButton`: these two must match **only** while it is generating.
+4. Prefer stable hooks (`data-*`, `role`, `aria-label`, meaningful tags) over auto-generated class names, which change on every site update.
+5. Save, reload the extension, reload the chat tab, and look for `[Hoseki] content script active for <host> adapter: <name>` in the Console.
+
+The full walkthrough, with a field reference, examples, and troubleshooting, is in [docs/SELECTORS.md](docs/SELECTORS.md).
 
 ## 🧪 Testing
 
@@ -280,11 +306,11 @@ The test suite covers path-jail escapes (`..`, absolute paths, symlinks), auth a
 
 ## 🗺️ Roadmap
 
-- [ ] **Phase 1**: Daemon with read-only tools, auth, path jail, and jail-escape tests
-- [ ] **Phase 2**: Write tools with terminal diff approval and the audit log
-- [ ] **Phase 3**: `run_cmd` with allowlist and Docker sandbox
-- [ ] **Phase 4**: Browser extension (background worker, content script, popup, two site adapters)
-- [ ] **Phase 5**: Preamble, full docs, and end-to-end test checklist
+- [x] **Phase 1**: Daemon with read-only tools, auth, path jail, and jail-escape tests
+- [x] **Phase 2**: Write tools with terminal diff approval and the audit log
+- [x] **Phase 3**: `run_cmd` with allowlist and Docker sandbox
+- [x] **Phase 4**: Browser extensions for Chrome (`extension/chrome/`) and Firefox (`extension/firefox/`): background worker, content script, popup, site adapters
+- [x] **Phase 5**: Preamble, full docs, and end-to-end test checklist
 - [ ] **Phase 6 (optional)**: `hoseki mcp` stdio (JSON-RPC) adapter reusing the same context, for clients that support MCP natively
 
 ## 📜 License

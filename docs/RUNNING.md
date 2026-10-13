@@ -131,17 +131,30 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ## Step 6: Load the Browser Extension
 
-In Chrome (or Edge/Brave):
+There's one build per browser: `extension/chrome/` (Chrome, Edge, Brave, and other Chromium browsers) and `extension/firefox/` (Firefox).
+
+### Chrome (or Edge/Brave)
 
 1. Open `chrome://extensions`.
 2. Toggle **Developer mode** on (top-right).
 3. Click **Load unpacked**.
-4. Select the `extension/` folder inside your Hoseki clone.
+4. Select the `extension/chrome/` folder inside your Hoseki clone.
 5. Click the Hoseki icon in the toolbar to open the popup.
-6. Fill in:
-   - **Daemon URL:** `http://127.0.0.1:8765`
-   - **Bearer token:** run `cat ~/.hoseki/token` in terminal #2 and paste the output.
-7. Click **Save**.
+
+### Firefox
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…** and select `extension/firefox/manifest.json` inside your Hoseki clone. Temporary add-ons are removed when Firefox closes, so repeat this next session.
+3. Open the Hoseki popup from the toolbar (use the puzzle-piece Extensions menu if you don't see it).
+
+### Then, in either browser
+
+Fill in:
+
+- **Daemon URL:** `http://127.0.0.1:8765`
+- **Bearer token:** run `cat ~/.hoseki/token` in terminal #2 and paste the output.
+
+Click **Save**.
 
 > **Checkpoint:** click **Check health**. It must print `{"ok": true, ...}`. If it doesn't:
 >
@@ -168,7 +181,9 @@ Open DevTools (F12) → **Console**. Look for:
 [Hoseki] content script active for chat.z.ai adapter: GLM / z.ai (best-effort)
 ```
 
-> **Checkpoint:** that line appears. If it doesn't, the content script didn't load. Reload the tab, or reload the extension at `chrome://extensions`.
+> **Checkpoint:** that line appears. If it doesn't, the content script didn't load. Reload the tab, or reload the extension at `chrome://extensions` (Firefox: `about:debugging`).
+>
+> If the line appears but nothing happens once the model emits a tool block, the site's selectors probably need refreshing. See [SELECTORS.md](SELECTORS.md).
 
 ## Step 8: Paste the Preamble
 
@@ -290,3 +305,6 @@ You do not need to redo Steps 3 to 6 unless you change project folders or reinst
 | No `[Hoseki] content script active` console line  | Reload the chat tab, or reload the extension at `chrome://extensions`.        |
 | Jail check prints file contents                   | **Stop.** The path jail is broken. Do not point Hoseki at real code.          |
 | Commands fail with `command not in allow-list`    | Expected for anything not on the allow-list. Add a prefix in `[commands]` (Step 11). |
+| Nothing happens after the model emits a tool block | The site's selectors are probably out of date. See [SELECTORS.md](SELECTORS.md). |
+| Popup or overlay says `origin not allowed by daemon` | The daemon rejected your browser's extension origin (`chrome-extension://<id>` or `moz-extension://<uuid>`). Add it to the daemon's allowed origins. |
+| Firefox: no `[Hoseki] content script active` line | Site access may not be granted: open `about:addons` → Hoseki → **Permissions**. Also check the temporary add-on is still loaded. |
