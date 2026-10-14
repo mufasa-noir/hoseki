@@ -42,8 +42,7 @@ def apply_patch(args: ApplyPatchArgs, ctx: ToolContext) -> ToolResult:
     if not target.is_file():
         raise ToolError(f"not a regular file: {args.path}")
 
-    patch_bin = shutil.which("patch")
-    if patch_bin is None:
+    if shutil.which("patch") is None:
         raise ToolError("the 'patch' utility was not found on PATH")
 
     decision = ctx.approval.request(
@@ -56,7 +55,6 @@ def apply_patch(args: ApplyPatchArgs, ctx: ToolContext) -> ToolResult:
     if not decision.approved:
         return ToolResult(ok=False, error="patch denied by operator")
 
-    # Try -p0, -p1, -p2 in order; the model's diff prefixes vary.
     last_err = ""
     for level in ("-p0", "-p1", "-p2"):
         dry = _run_patch(level, args.unified_diff, str(ctx.jail.root), dry_run=True)

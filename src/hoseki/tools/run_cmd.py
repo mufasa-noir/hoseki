@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from hoseki.approval import ApprovalRequest
 from hoseki.context import ToolContext
-from hoseki.errors import LimitExceeded, ToolError
+from hoseki.errors import ToolError
 from hoseki.sandbox import build_docker_plan, build_host_plan, docker_available
 from hoseki.tools.base import ToolResult
 
@@ -20,17 +20,12 @@ class RunCmdArgs(BaseModel):
 
 
 def _check_allowlist(cmd: str, allowlist: list[str]) -> None:
-    """Deny unless the command starts with one of the allowlisted prefixes.
-
-    Prefixes are matched against the *raw* command string, so multi-word
-    prefixes like ``"git status"`` require an exact leading match.
-    """
     if not allowlist:
         raise ToolError(
             "command allow-list is empty in config; refusing to run anything "
             "(add prefixes to [commands].allowlist)"
         )
-    # Reject obvious shell-chaining that would smuggle past a prefix match.
+    # Reject shell metacharacters that could chain past a prefix match.
     for token in (";", "&&", "||", "`", "$(", ">", "<", "\n"):
         if token in cmd:
             raise ToolError(

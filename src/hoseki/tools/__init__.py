@@ -6,6 +6,9 @@ from hoseki.tools.find_files import FindFilesArgs, find_files
 from hoseki.tools.grep import GrepArgs, grep
 from hoseki.tools.list_dir import ListDirArgs, list_dir
 from hoseki.tools.read_file import ReadFileArgs, read_file
+from hoseki.tools.write_file import WriteFileArgs, write_file
+from hoseki.tools.apply_patch import ApplyPatchArgs, apply_patch
+from hoseki.tools.run_cmd import RunCmdArgs, run_cmd
 
 
 TOOLS: dict[str, Tool] = {}
@@ -48,6 +51,36 @@ _register(Tool(
                 "Never follows symlinks.",
     args_model=FindFilesArgs,
     handler=find_files,
+))
+
+_register(Tool(
+    name="write_file",
+    description=(
+        "Write or append to a UTF-8 text file. Requires human approval in "
+        "the daemon terminal; shows a unified diff before writing. "
+        "mode='w' (default) overwrites; mode='a' appends. Use mode='a' to "
+        "build a large file across multiple calls."
+    ),
+    args_model=WriteFileArgs,
+    handler=write_file,
+))
+
+_register(Tool(
+    name="apply_patch",
+    description="Apply a unified diff to an existing file. Requires human "
+                "approval. Fails cleanly if the patch does not apply.",
+    args_model=ApplyPatchArgs,
+    handler=apply_patch,
+))
+
+_register(Tool(
+    name="run_cmd",
+    description="Run a shell command, subject to the command allow-list. "
+                "Requires human approval. Prefers Docker sandbox with no "
+                "network; refuses to run on the host unless explicitly "
+                "enabled in config.",
+    args_model=RunCmdArgs,
+    handler=run_cmd,
 ))
 
 

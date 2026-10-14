@@ -256,7 +256,7 @@ def create_app(config: Config) -> FastAPI:
 
         started = time.monotonic()
         try:
-            # Run the handler in a worker thread so that blocking terminal
+            # Run the handler in a worker thread so blocking terminal
             # approvals do not stall the event loop.
             result = await asyncio.to_thread(tool.handler, args, ctx)
         except (JailError, SecretDenied, LimitExceeded, ToolValidationError,
@@ -288,7 +288,6 @@ def create_app(config: Config) -> FastAPI:
 
         return JSONResponse(payload_out, status_code=200)
 
-    # Startup audit line so we have a marker in the log.
     audit.append(
         "daemon_start",
         version=__version__,

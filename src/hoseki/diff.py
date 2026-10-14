@@ -10,11 +10,7 @@ def render_unified_diff(
     label: str,
     context: int = 3,
 ) -> str:
-    """Return a unified diff between two strings.
-
-    Returns "" when there are no changes. `label` is used for both the
-    ``---`` and ``+++`` sides so the output is easy to read.
-    """
+    """Return a unified diff between two strings, or "" if identical."""
     old_lines = old.splitlines(keepends=False)
     new_lines = new.splitlines(keepends=False)
     if old_lines == new_lines:
@@ -31,7 +27,14 @@ def render_unified_diff(
 
 
 def render_new_file(content: str, label: str) -> str:
-    """Render a fake diff for a brand-new file."""
+    """Render a pseudo-diff for a brand-new file."""
     lines = content.splitlines()
     body = "\n".join("+" + line for line in lines)
     return f"--- /dev/null\n+++ b/{label}\n@@ -0,0 +1,{len(lines)} @@\n{body}"
+
+
+def render_append(content: str, label: str) -> str:
+    """Render a pseudo-diff for an append operation."""
+    lines = content.splitlines()
+    body = "\n".join("+" + line for line in lines)
+    return f"--- a/{label}\n+++ b/{label}\n@@ append, +{len(lines)} lines @@\n{body}"

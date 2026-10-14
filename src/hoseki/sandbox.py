@@ -13,8 +13,8 @@ from hoseki.errors import ToolError
 @dataclass
 class SandboxPlan:
     argv: list[str]
-    container_workspace: str  # path *inside* the container
-    mode: str                 # "docker" | "host"
+    container_workspace: str
+    mode: str  # "docker" | "host"
 
 
 def docker_available() -> bool:

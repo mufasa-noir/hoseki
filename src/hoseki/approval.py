@@ -1,8 +1,8 @@
-"""Terminal approval gate. Runs in a worker thread, blocks on stdin.
+"""Terminal approval gate.
 
-The decision is made only by the human at the terminal. Nothing in the
-model's output, a file's contents, or an HTTP header can pre-approve,
-bypass, or mutate this.
+The decision is made only by a human at the daemon's own terminal.
+Nothing in the model's output, a file's contents, or an HTTP header can
+pre-approve, bypass, or mutate this.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class ApprovalGate:
         self._audit = audit
         self._stdin = stdin if stdin is not None else sys.stdin
         self._stderr = stderr if stderr is not None else sys.stderr
-        # Bypass hook for tests. Never set from config or network input.
+        # Bypass hook for tests only. Never set from config or network input.
         self._auto: bool | None = None
 
     def set_auto_for_tests(self, decision: bool | None) -> None:
