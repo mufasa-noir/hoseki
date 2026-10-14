@@ -50,16 +50,39 @@ allow_missing_origin = true
 # against the raw command string; shell operators (; && || ` $( > <) are
 # rejected outright even if the prefix matches, to prevent chaining.
 allowlist = [
-  # "git status",
-  # "git diff",
-  # "ls",
-  # "pytest",
+  "git status",
+  "git diff",
+  "git log",
+  "git show",
+  "git branch",
+  "git rev-parse",
+  # add whatever else you want the model to be able to run
 ]
 # If Docker is not available and this is false, run_cmd refuses entirely.
 unsafe_host_exec = false
 default_timeout = 60
 max_timeout = 600
 max_output_bytes = 200_000
+
+[ignore]
+# Skip .gitignore'd paths and a built-in list of common build/cache dirs
+# (node_modules, .next, __pycache__, target, dist, build, .venv, ...).
+use_defaults = true
+respect_gitignore = true
+
+# Additional directory names to always skip (added to the defaults).
+extra_dirs = [
+  # "tmp",
+  # "scratch",
+  # "vendor",
+]
+
+# Additional filename globs to always skip (matched against the basename).
+extra_files = [
+  # "*.min.js",
+  # "*.lock",
+  # "*.snap",
+]
 
 [sandbox]
 # "auto"   – use Docker when available, otherwise refuse
