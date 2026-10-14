@@ -14,6 +14,7 @@ class ListDirArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
     path: str = "."
     depth: int = Field(1, ge=1, le=10)
+    respect_ignore: bool = True
 
 
 _LINE_CAP = 5000
@@ -28,11 +29,13 @@ def list_dir(args: ListDirArgs, ctx: ToolContext) -> ToolResult:
     if not target.is_dir():
         raise ToolError(f"not a directory: {args.path}")
 
+    rules = ctx.ignore_rules() if args.respect_ignore else None
     lines: list[str] = []
     truncated = False
+    ignored_count = 0
 
     def walk(directory: Path, prefix: str, depth: int) -> None:
-        nonlocal truncated
+        nonlocal truncated, ignored_count
         if truncated:
             return
         try:
@@ -49,6 +52,11 @@ def list_dir(args: ListDirArgs, ctx: ToolContext) -> ToolResult:
                 truncated = True
                 return
 
+            # Symlinks: show target and don't follow.
+            if entry.is_symlink():
+                lines.append(f"{prefix}{_symlink_label(entry, ctx)}")
+                continue
+
             try:
                 rel = entry.relative_to(ctx.jail.root)
             except ValueError:
@@ -59,15 +67,14 @@ def list_dir(args: ListDirArgs, ctx: ToolContext) -> ToolResult:
                 lines.append(f"{prefix}{entry.name} (hidden by secrets policy)")
                 continue
 
-            if entry.is_symlink():
-                try:
-                    entry.resolve(strict=True).relative_to(ctx.jail.root)
-                    lines.append(f"{prefix}{entry.name}@")
-                except (ValueError, OSError):
-                    lines.append(
-                        f"{prefix}{entry.name}@ (broken or escapes workspace)"
-                    )
-                continue
+            if rules is not None and entry.is_dir():
+                if rules.is_ignored_dir(entry):
+                    ignored_count += 1
+                    continue
+            if rules is not None and entry.is_file():
+                if rules.is_ignored_file(entry):
+                    ignored_count += 1
+                    continue
 
             if entry.is_dir():
                 lines.append(f"{prefix}{entry.name}/")
@@ -77,5 +84,33 @@ def list_dir(args: ListDirArgs, ctx: ToolContext) -> ToolResult:
                 lines.append(f"{prefix}{entry.name}")
 
     walk(target, "", 1)
-    output = "\n".join(lines) if lines else "(empty directory)"
+
+    if not lines:
+        output = "(empty directory)"
+    else:
+        output = "\n".join(lines)
+
+    if ignored_count:
+        output += f"\n\n({ignored_count} entries skipped by ignore rules)"
+
     return ToolResult(ok=True, output=output, truncated=truncated)
+
+
+def _symlink_label(entry: Path, ctx: ToolContext) -> str:
+    """Format a symlink as `name@ -> target`, flagging escapes and breaks."""
+    name = entry.name
+    try:
+        raw_target = entry.readlink()
+    except OSError:
+        return f"{name}@ -> (unreadable)"
+
+    try:
+        resolved = entry.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return f"{name}@ -> {raw_target} (broken)"
+
+    try:
+        rel_target = resolved.relative_to(ctx.jail.root)
+        return f"{name}@ -> {rel_target.as_posix()}"
+    except ValueError:
+        return f"{name}@ -> {resolved}  [ESCAPES WORKSPACE]"

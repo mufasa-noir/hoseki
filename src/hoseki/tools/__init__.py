@@ -6,6 +6,7 @@ from hoseki.tools.find_files import FindFilesArgs, find_files
 from hoseki.tools.grep import GrepArgs, grep
 from hoseki.tools.list_dir import ListDirArgs, list_dir
 from hoseki.tools.read_file import ReadFileArgs, read_file
+from hoseki.tools.tree import TreeArgs, tree
 from hoseki.tools.write_file import WriteFileArgs, write_file
 from hoseki.tools.apply_patch import ApplyPatchArgs, apply_patch
 from hoseki.tools.run_cmd import RunCmdArgs, run_cmd
@@ -20,10 +21,21 @@ def _register(tool: Tool) -> None:
 
 _register(Tool(
     name="list_dir",
-    description="List directory entries under the workspace root. Symlinks "
-                "are shown but never followed. Depth is capped by config.",
+    description="Shallow directory listing. Symlinks are shown with their "
+                "target but never followed. Ignored entries are skipped "
+                "unless respect_ignore=false.",
     args_model=ListDirArgs,
     handler=list_dir,
+))
+
+_register(Tool(
+    name="tree",
+    description="Recursive directory tree with box-drawing characters. "
+                "Skips .gitignore'd paths and common build/cache dirs by "
+                "default, and prints a count summary. Prefer this over "
+                "multiple list_dir calls when exploring a repo layout.",
+    args_model=TreeArgs,
+    handler=tree,
 ))
 
 _register(Tool(
@@ -39,8 +51,9 @@ _register(Tool(
 _register(Tool(
     name="grep",
     description="Regex search across files. Uses ripgrep when available, "
-                "otherwise a pure-Python walker. Skips binary files, "
-                "oversized files, and denied secret paths.",
+                "otherwise a pure-Python walker. Skips .gitignore'd paths, "
+                "common build/cache dirs, binary files, oversized files, "
+                "and denied secret paths.",
     args_model=GrepArgs,
     handler=grep,
 ))
@@ -48,6 +61,7 @@ _register(Tool(
 _register(Tool(
     name="find_files",
     description="Find files by PurePath.match-style glob (e.g. '**/*.py'). "
+                "Skips .gitignore'd paths and common build/cache dirs. "
                 "Never follows symlinks.",
     args_model=FindFilesArgs,
     handler=find_files,

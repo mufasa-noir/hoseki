@@ -16,6 +16,7 @@ class FindFilesArgs(BaseModel):
     glob: str
     path: str = "."
     max_results: int = Field(500, ge=1, le=5000)
+    respect_ignore: bool = True
 
 
 def find_files(args: FindFilesArgs, ctx: ToolContext) -> ToolResult:
@@ -25,22 +26,26 @@ def find_files(args: FindFilesArgs, ctx: ToolContext) -> ToolResult:
     if not root.is_dir():
         raise ToolError(f"not a directory: {args.path}")
 
+    rules = ctx.ignore_rules() if args.respect_ignore else None
     max_results = min(args.max_results, ctx.limits.max_find_results)
+
     matches: list[str] = []
     truncated = False
 
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        if rules is not None:
+            keep: list[str] = []
+            for d in dirnames:
+                abs_d = Path(dirpath) / d
+                if not rules.is_ignored_dir(abs_d):
+                    keep.append(d)
+            dirnames[:] = keep
+
         try:
             dir_rel = Path(dirpath).relative_to(ctx.jail.root)
         except ValueError:
             dirnames[:] = []
             continue
-
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if not is_denied(str(dir_rel / d), ctx.secrets.deny_globs)
-        ]
 
         for name in filenames:
             p = Path(dirpath) / name
@@ -49,6 +54,8 @@ def find_files(args: FindFilesArgs, ctx: ToolContext) -> ToolResult:
             except ValueError:
                 continue
             if is_denied(str(rel), ctx.secrets.deny_globs):
+                continue
+            if rules is not None and rules.is_ignored_file(p):
                 continue
             if rel.match(args.glob):
                 matches.append(str(rel))

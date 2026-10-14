@@ -47,6 +47,14 @@ class SecretsConfig:
 
 
 @dataclass
+class IgnoreConfig:
+    use_defaults: bool = True
+    respect_gitignore: bool = True
+    extra_dirs: list[str] = field(default_factory=list)
+    extra_files: list[str] = field(default_factory=list)
+
+
+@dataclass
 class CommandsConfig:
     allowlist: list[str] = field(default_factory=list)
     unsafe_host_exec: bool = False
@@ -57,10 +65,6 @@ class CommandsConfig:
 
 @dataclass
 class SandboxConfig:
-    # "auto"    -> use Docker if available, else refuse (unless unsafe_host_exec)
-    # "docker"  -> require Docker, refuse otherwise
-    # "host"    -> run on host (still requires human approval)
-    # "refuse"  -> never run anything (kill switch)
     mode: str = "auto"
     docker_image: str = "python:3.11-slim"
     network: bool = False
@@ -75,6 +79,7 @@ class Config:
     server: ServerConfig
     limits: LimitsConfig
     secrets: SecretsConfig
+    ignore: IgnoreConfig
     commands: CommandsConfig
     sandbox: SandboxConfig
     token_file: Path
@@ -107,8 +112,8 @@ class Config:
             with chosen.open("rb") as f:
                 data = tomllib.load(f)
 
-        server = ServerConfig(**{k: v for k, v in data.get("server", {}).items()})
-        limits = LimitsConfig(**{k: v for k, v in data.get("limits", {}).items()})
+        server = ServerConfig(**data.get("server", {}))
+        limits = LimitsConfig(**data.get("limits", {}))
 
         secrets_raw = data.get("secrets", {})
         secrets = SecretsConfig(
@@ -116,6 +121,7 @@ class Config:
             redact=bool(secrets_raw.get("redact", True)),
         )
 
+        ignore = IgnoreConfig(**data.get("ignore", {}))
         commands = CommandsConfig(**data.get("commands", {}))
         sandbox = SandboxConfig(**data.get("sandbox", {}))
         if sandbox.mode not in ("auto", "docker", "host", "refuse"):
@@ -137,7 +143,6 @@ class Config:
         token_file = Path(os.path.expanduser(
             data.get("auth", {}).get("token_file", "~/.hoseki/token")
         ))
-
         audit_log = Path(os.path.expanduser(
             data.get("audit", {}).get("path", "~/.hoseki/audit.jsonl")
         ))
@@ -164,6 +169,7 @@ class Config:
             server=server,
             limits=limits,
             secrets=secrets,
+            ignore=ignore,
             commands=commands,
             sandbox=sandbox,
             token_file=token_file,

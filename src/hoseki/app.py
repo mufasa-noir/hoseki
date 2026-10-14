@@ -81,6 +81,7 @@ def create_app(config: Config) -> FastAPI:
         approval=approval,
         commands=config.commands,
         sandbox=config.sandbox,
+        ignore=config.ignore,
     )
 
     app = FastAPI(
@@ -169,6 +170,8 @@ def create_app(config: Config) -> FastAPI:
             },
             "sandbox_mode": config.sandbox.mode,
             "command_allowlist_size": len(config.commands.allowlist),
+            "ignore_respects_gitignore": config.ignore.respect_gitignore,
+            "ignore_use_defaults": config.ignore.use_defaults,
         }
 
     @app.post("/v1/call")
