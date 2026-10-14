@@ -81,7 +81,7 @@ document.getElementById("status").addEventListener("click", async () => {
 });
 
 document.getElementById("copyPreamble").addEventListener("click", async () => {
-  const url = chrome.runtime.getURL("preamble.md");
+  const url = chrome.runtime.getURL("../preamble.md");
   const text = await (await fetch(url)).text();
   await navigator.clipboard.writeText(text);
   setState("preamble copied");
