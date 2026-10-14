@@ -1,33 +1,168 @@
+/* Hoseki overlay — same palette as the popup:
+   paper #f4ecd9, ink #14110f, vermilion #e5331f, cream #fffdf7.
+   Injected into third-party chat pages, so every rule is scoped under
+   #hoseki-overlay and the basics (font, box model) are set explicitly. */
+
+#hoseki-overlay,
+#hoseki-overlay * {
+  box-sizing: border-box;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+}
+
 #hoseki-overlay {
   position: fixed;
   right: 16px;
   bottom: 16px;
   width: 380px;
+  max-width: calc(100vw - 32px);
   max-height: 50vh;
-  background: #0e1116;
-  color: #e6e6e6;
-  border: 1px solid #2a2f3a;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #14110f;
+  color: #f4ecd9;
+  border: 3px solid #14110f;
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 #14110f;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   z-index: 2147483646;
-  display: none;
+  display: none; /* content.js flips this to block */
+  overflow: hidden;
+  animation: hoseki-pop .18s ease-out;
 }
+
+@keyframes hoseki-pop {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- header ---------- */
+
 #hoseki-overlay .hoseki-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px; border-bottom: 1px solid #2a2f3a; background: #131820;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 8px 7px 10px;
+  background: #f4ecd9;
+  border-bottom: 3px solid #14110f;
 }
-#hoseki-overlay .hoseki-title { font-weight: 600; letter-spacing: .5px; }
+/* halftone dots fading in from the right edge, like the banner */
+#hoseki-overlay .hoseki-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(20, 17, 15, .2) 1px, transparent 1.5px) 0 0 / 6px 6px;
+  -webkit-mask-image: linear-gradient(to left, #000, transparent 60%);
+          mask-image: linear-gradient(to left, #000, transparent 60%);
+  pointer-events: none;
+}
+
+#hoseki-overlay .hoseki-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #14110f;
+  font: 800 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .12em;
+}
+/* the torii-in-a-red-sun mark, drawn inline so no extra file is needed */
+#hoseki-overlay .hoseki-title::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  flex: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23e5331f' stroke='%2314110f' stroke-width='2'/%3E%3Cpath d='M3 9 Q16 12 29 9 L28 12 Q16 14.5 4 12 Z' fill='%2314110f'/%3E%3Crect x='8' y='14' width='16' height='2.6' fill='%2314110f'/%3E%3Crect x='9' y='12' width='3' height='15' fill='%2314110f'/%3E%3Crect x='20' y='12' width='3' height='15' fill='%2314110f'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+/* slanted red bar, echoing the logo underline */
+#hoseki-overlay .hoseki-title::after {
+  content: "";
+  width: 28px;
+  height: 3px;
+  background: #e5331f;
+  transform: skewX(-24deg);
+}
+
 #hoseki-overlay .hoseki-close {
-  background: transparent; color: #aaa; border: none; cursor: pointer;
-  font-size: 16px; line-height: 1;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fffdf7;
+  color: #14110f;
+  border: 2px solid #14110f;
+  border-radius: 5px;
+  box-shadow: 2px 2px 0 #14110f;
+  font: 700 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+  transition: transform .06s, box-shadow .06s, background-color .12s, color .12s;
 }
+#hoseki-overlay .hoseki-close:hover {
+  background: #e5331f;
+  color: #fffdf7;
+}
+#hoseki-overlay .hoseki-close:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #14110f;
+}
+#hoseki-overlay .hoseki-close:focus-visible {
+  outline: 3px solid rgba(229, 51, 31, .55);
+  outline-offset: 2px;
+}
+
+/* ---------- body ---------- */
+
 #hoseki-overlay .hoseki-body {
-  padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
-  overflow: auto; max-height: 34vh;
+  position: relative;
+  max-height: 34vh;
+  padding: 9px 12px 9px 32px;
+  overflow: auto;
+  background: #14110f;
+  color: #f4ecd9;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: #e5331f #14110f;
 }
+/* the logo's >_ prompt in the gutter */
+#hoseki-overlay .hoseki-body::before {
+  content: ">_";
+  position: absolute;
+  top: 9px;
+  left: 10px;
+  color: #e5331f;
+  font-weight: 800;
+}
+#hoseki-overlay .hoseki-body::-webkit-scrollbar { width: 8px; }
+#hoseki-overlay .hoseki-body::-webkit-scrollbar-track { background: #14110f; }
+#hoseki-overlay .hoseki-body::-webkit-scrollbar-thumb {
+  background: #e5331f;
+  border-radius: 4px;
+}
+
+/* ---------- footer ---------- */
+
 #hoseki-overlay .hoseki-foot {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 10px; border-top: 1px solid #2a2f3a; background: #131820;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fffdf7;
+  border-top: 3px solid #14110f;
 }
-#hoseki-overlay .hoseki-hint { color: #888; }
+#hoseki-overlay .hoseki-foot:has(.hoseki-hint:empty) { display: none; }
+#hoseki-overlay .hoseki-hint {
+  color: #5e564b;
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #hoseki-overlay,
+  #hoseki-overlay * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

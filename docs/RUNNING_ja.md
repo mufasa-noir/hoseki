@@ -47,7 +47,7 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
 ```
 
-> **チェックポイント:** `hoseki --version` が `hoseki 0.1.0` と表示する。`hoseki` が見つからない場合は、仮想環境に入っていません。もう一度 `source .venv/bin/activate` を実行してください。
+> **チェックポイント:** `hoseki --version` が `hoseki 0.2.1` と表示する。`hoseki` が見つからない場合は、仮想環境に入っていません。もう一度 `source .venv/bin/activate` を実行してください。
 
 ## ステップ 3: 設定する
 
@@ -83,7 +83,7 @@ hoseki serve --config ./config.toml
 > **チェックポイント:** 次の行が表示され、プロセスが終了せず動き続けている。
 >
 > ```text
-> Hoseki 0.1.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+> Hoseki 0.2.1 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
 > ```
 
 **このターミナルは開いたままにしてください。** 承認プロンプトは、このあとここに表示されます。残りのステップは、2 つ目のターミナルで行います。
@@ -103,7 +103,7 @@ export HOSEKI=http://127.0.0.1:8765
 curl -s $HOSEKI/v1/health | jq
 ```
 
-> **チェックポイント:** `{"ok": true, "service": "hoseki", "version": "0.1.0"}` が表示される。
+> **チェックポイント:** `{"ok": true, "service": "hoseki", "version": "0.2.1"}` が表示される。
 
 次に、ワークスペースを一覧表示します。
 

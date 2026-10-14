@@ -1,18 +1,335 @@
-body { width: 340px; font: 13px/1.4 system-ui, sans-serif; padding: 12px; }
-h1 { font-size: 14px; margin: 0 0 8px; }
-.site { font-family: ui-monospace, monospace; font-size: 11px;
-        color: #555; margin-bottom: 8px; padding: 4px 6px;
-        background: #f3f3f3; border-radius: 4px; }
-label { display: block; margin: 6px 0; }
-input[type="text"], input[type="password"], input[type="number"] {
-  width: 100%; padding: 4px 6px; box-sizing: border-box; font: inherit;
+/* Hoseki popup — palette pulled from the logo:
+   paper #f4ecd9, ink #14110f, vermilion #e5331f, cream #fffdf7 */
+
+:root {
+  --paper: #f4ecd9;
+  --ink: #14110f;
+  --red: #e5331f;
+  --red-deep: #a8190f;
+  --cream: #fffdf7;
+  --shade: #d1c9b9;
+  --muted: #5e564b;
+  --ok: #1f7a3d;
+
+  --jp: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo",
+        "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-.row { display: flex; gap: 6px; margin: 8px 0; }
-button { padding: 4px 8px; cursor: pointer; }
-.state { font-family: ui-monospace, monospace; font-size: 11px;
-         white-space: pre-wrap; padding: 6px; background: #f3f3f3;
-         border-radius: 4px; min-height: 1em; }
-hr { border: none; border-top: 1px solid #ddd; margin: 10px 0; }
-.check { display: flex; align-items: center; gap: 6px; }
-.warn { color: #8a3b12; background: #fff2e0; padding: 6px;
-        border-radius: 4px; font-size: 11px; margin: 6px 0; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  width: 360px;
+  margin: 0;
+  padding: 14px 14px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px/1.4 var(--ui);
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+/* halftone dots drifting in from the right, like the banner */
+.masthead::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: radial-gradient(circle, rgba(20, 17, 15, .22) 1px, transparent 1.5px) 0 0 / 6px 6px;
+  -webkit-mask-image: radial-gradient(circle at 100% 100%, #000, transparent 65%);
+          mask-image: radial-gradient(circle at 100% 100%, #000, transparent 65%);
+  pointer-events: none;
+}
+.mark {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 11px;
+}
+.brand {
+  position: relative;
+  margin: 0;
+  font-weight: inherit;
+}
+.jp {
+  display: block;
+  font: 900 34px/1 var(--jp);
+  letter-spacing: .02em;
+  text-shadow: 3px 3px 0 var(--red);
+}
+.roman {
+  display: block;
+  margin-top: 5px;
+  font: 700 15px/1 var(--mono);
+  letter-spacing: .14em;
+}
+.bar {
+  display: block;
+  width: 92px;
+  height: 4px;
+  margin-top: 6px;
+  background: var(--red);
+  transform: skewX(-24deg);
+}
+
+/* connection stamp, styled after the 宝石 hanko in the logo */
+.stamp {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  padding: 3px 8px;
+  background: var(--cream);
+  border: 2px solid var(--stamp, var(--muted));
+  border-radius: 4px;
+  outline: 1px solid var(--stamp, var(--muted));
+  outline-offset: 2px;
+  color: var(--stamp, var(--muted));
+  font: 800 11px/1.2 var(--ui);
+  transform: rotate(5deg);
+}
+.stamp.checking { --stamp: var(--muted); }
+.stamp.online   { --stamp: var(--ok);  animation: stamp-in .22s ease-out; }
+.stamp.offline  { --stamp: var(--red); animation: stamp-in .22s ease-out; }
+
+@keyframes stamp-in {
+  from { opacity: 0; transform: rotate(-8deg) scale(1.7); }
+  to   { opacity: 1; transform: rotate(5deg) scale(1); }
+}
+
+/* ---------- active tab ---------- */
+
+.site {
+  display: flex;
+  margin-top: 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font: 11px/1.3 var(--mono);
+  word-break: break-all;
+}
+.site .dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--shade);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+.site.ok .dot { background: var(--ok); }
+
+/* ---------- panels ---------- */
+
+.panel {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.field { margin-top: 8px; }
+.field.first { margin-top: 0; }
+.field label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+  width: 100%;
+  padding: 5px 9px;
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  font: 13px var(--ui);
+}
+input::placeholder { color: #8a8275; }
+
+input:focus-visible,
+button:focus-visible,
+.switch:focus-visible,
+.check input:focus-visible {
+  outline: 3px solid rgba(229, 51, 31, .5);
+  outline-offset: 1px;
+}
+
+.secret { display: flex; gap: 6px; }
+.secret input { flex: 1; min-width: 0; }
+
+/* ---------- buttons ---------- */
+
+button {
+  padding: 6px 10px;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  box-shadow: 2px 2px 0 var(--ink);
+  font: 700 12.5px var(--ui);
+  cursor: pointer;
+  transition: transform .06s, box-shadow .06s, background-color .12s;
+}
+button:hover { background: #fff1cf; }
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--ink);
+}
+button.primary { background: var(--red); color: var(--cream); }
+button.primary:hover { background: #cf2a17; }
+button.ghost {
+  padding: 0 10px;
+  box-shadow: none;
+  font-weight: 600;
+}
+button.ghost:active { transform: none; }
+
+.actions { display: flex; gap: 8px; margin-top: 10px; }
+.actions button { flex: 1; }
+.actions .primary { flex: 1.1; }
+
+/* ---------- output ---------- */
+
+.terminal {
+  position: relative;
+  min-height: 2em;
+  max-height: 110px;
+  margin-top: 10px;
+  padding: 6px 10px 6px 28px;
+  overflow: auto;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 5px;
+  font: 11px/1.45 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.terminal::before {
+  content: ">_";
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  color: var(--red);
+  font-weight: 800;
+}
+.terminal.err { color: #ff9b8c; }
+
+/* ---------- sending ---------- */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.switch-text strong { display: block; font-size: 12.5px; }
+.switch-text small  { display: block; color: var(--muted); font-size: 11px; }
+
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  background: var(--shade);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color .15s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--ink);
+  border-radius: 50%;
+  transition: transform .15s;
+}
+.switch:checked { background: var(--red); }
+.switch:checked::after { transform: translateX(18px); }
+
+.warn {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fde9e4;
+  color: #6e1a0f;
+  border-left: 4px solid var(--red-deep);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.warn.flag { animation: nudge .3s; }
+
+@keyframes nudge {
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--red);
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.inline input[type="number"] { width: 92px; text-align: right; }
+
+/* ---------- footer ---------- */
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.foot button { flex: 1; }
+.version { color: var(--muted); font: 11px var(--mono); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
