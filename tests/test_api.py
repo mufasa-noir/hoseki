@@ -7,9 +7,16 @@ from hoseki.auth import get_or_create_token
 
 
 def _client(config):
+    """Build a TestClient whose Host header matches the configured server.
+
+    Starlette's TestClient defaults to `Host: testserver`, which our
+    DNS-rebinding middleware correctly rejects. Setting base_url makes the
+    client send the same Host a real loopback request would.
+    """
     app = create_app(config)
     token = get_or_create_token(config.token_file)
-    return TestClient(app), token
+    base = f"http://{config.server.host}:{config.server.port}"
+    return TestClient(app, base_url=base), token
 
 
 def test_health_no_auth(config):
