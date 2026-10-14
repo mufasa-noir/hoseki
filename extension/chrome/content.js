@@ -5,9 +5,18 @@
 //
 // Deliberately conservative: on parse error or ambiguity, do nothing.
 //
-// Supported sites: chat.z.ai (GLM), kimi.com, chat.deepseek.com.
-// Selector verification status is noted per-adapter below. If selectors
-// have drifted, run `hosekiDiagnose()` in the console to find new ones.
+// Supported sites:
+//   - chat.z.ai       (GLM)      — selectors best-effort, unverified
+//   - kimi.com        (Kimi)     — selectors best-effort, unverified
+//   - chat.deepseek.com (DeepSeek) — selectors verified 2026-10-14
+//
+// IMPORTANT — DeepSeek renders ```tool fences as structured code blocks
+// (`.md-code-block` with the language label in a banner span, JSON in a
+// <pre>). The literal ```tool fence is NOT present in the DOM, so the
+// text-regex path will find nothing there. The adapter declares three
+// extra fields (`toolBlockSelector`, `toolBlockLangSelector`,
+// `toolBlockBodySelector`) that trigger a DOM-aware extraction path.
+// Other sites that leave fences in the DOM still work via the fallback.
 
 (function () {
   "use strict";
@@ -18,8 +27,7 @@
   // script does nothing on that site — it never runs stale tool calls.
   //
   // `verified` is the ISO date someone last confirmed the selectors against
-  // a live page. "never" means unverified best-effort guess. If this is a
-  // site you use, verify it and update this field.
+  // a live page. "never" means unverified best-effort guess.
   // ------------------------------------------------------------------------
   const ADAPTERS = {
     "chat.z.ai": {
@@ -50,27 +58,36 @@
 
     "chat.deepseek.com": {
       name: "DeepSeek",
-      verified: "never",
-      assistantMessage: [
-        "[data-message-author-role='assistant']",
-        "[data-role='assistant']",
-        ".ds-markdown",
-        "div[class*='ds-markdown']"
-      ].join(", "),
-      messageIdAttr: "data-message-id",
-      streamingIndicator: "[class*='thinking'], [class*='streaming']",
-      input: "textarea#chat-input, textarea[placeholder*='Message' i], textarea",
-      sendButton: [
-        "button[type='submit']",
-        "div[role='button'][aria-disabled]",
-        "div[role='button'][class*='send' i]",
-        "[data-testid='send-button']"
-      ].join(", "),
-      stopButton: [
-        "button[aria-label*='Stop' i]",
-        "div[role='button'][aria-label*='Stop' i]",
-        "[data-testid='stop-button']"
-      ].join(", ")
+      verified: "2026-10-14",
+
+      // Outer wrapper for an assistant reply. `:has()` requires Chrome 105+
+      // / Firefox 121+; both are well past that.
+      assistantMessage:
+        "[data-virtual-list-item-key]:has(.ds-assistant-message-main-content)",
+
+      messageIdAttr: "data-virtual-list-item-key",
+
+      // DOM-aware extraction: DeepSeek renders code fences as
+      // `.md-code-block` containers with the language in a banner span and
+      // the body inside a <pre>. The literal ```tool fence is stripped by
+      // the markdown renderer, so we read structure instead of text.
+      toolBlockSelector: ".md-code-block",
+      toolBlockLangSelector: ".md-code-block-banner span",
+      toolBlockBodySelector: "pre",
+
+      // Unverified — no streaming class visible in the completed-reply DOM.
+      // isStreaming() falls through to stopButton, which reuses the send
+      // button's primary/circle classes. Confirm by inspecting during a
+      // live reply; if the classes differ, update stopButton.
+      streamingIndicator: "",
+      stopButton:
+        "div[role='button'].ds-button--primary.ds-button--circle",
+
+      input:
+        "textarea[placeholder='Message DeepSeek'], textarea[placeholder*='Message' i]",
+
+      sendButton:
+        "div[role='button'].ds-button--primary.ds-button--circle:not(.ds-button--disabled)"
     }
   };
 
@@ -98,7 +115,31 @@
 
   // ---------------------------------------------------------------- parsing
 
-  function extractToolBlocks(text) {
+  // Try DOM-aware extraction first (used by DeepSeek and any site that
+  // renders code fences as structured elements). Falls back to a regex on
+  // the raw text for sites that leave ```tool fences in the DOM.
+  function extractToolBlocks(msgEl) {
+    if (ADAPTER.toolBlockSelector) {
+      const blocks = [];
+      const codeBlocks = msgEl.querySelectorAll(ADAPTER.toolBlockSelector);
+      codeBlocks.forEach((block, i) => {
+        const lang = readCodeBlockLanguage(block);
+        if (lang !== "tool") return;
+        const preEl = block.querySelector(
+          ADAPTER.toolBlockBodySelector || "pre"
+        );
+        if (!preEl) return;
+        const parsed = tryParseSloppy(preEl.textContent.trim(), i);
+        if (parsed) blocks.push(parsed);
+      });
+      if (blocks.length) return blocks;
+    }
+    const text = msgEl.innerText || msgEl.textContent || "";
+    return extractToolBlocksFromText(text);
+  }
+
+  // Regex over raw text. Works when ```tool fences survive in the DOM.
+  function extractToolBlocksFromText(text) {
     const out = [];
     const re = /```tool\s*\n([\s\S]*?)(?:```|$)/g;
     let m;
@@ -113,6 +154,33 @@
       }
     }
     return out;
+  }
+
+  // Read the language label from a code block. DeepSeek puts it in the
+  // first short, identifier-shaped span inside the banner. We filter out
+  // "Copy", "Download", and other button labels by requiring the token to
+  // be a single alphanumeric word.
+  function readCodeBlockLanguage(block) {
+    if (!ADAPTER.toolBlockLangSelector) return "";
+    const spans = block.querySelectorAll(ADAPTER.toolBlockLangSelector);
+    for (const s of spans) {
+      const t = s.textContent.trim();
+      if (/^[a-zA-Z][a-zA-Z0-9_+-]{0,19}$/.test(t)) return t;
+    }
+    return "";
+  }
+
+  // Fast check: does this message contain at least one tool block?
+  // Uses the DOM path when available, then falls back to the text regex.
+  function hasToolBlock(el) {
+    if (ADAPTER.toolBlockSelector) {
+      const blocks = el.querySelectorAll(ADAPTER.toolBlockSelector);
+      for (const b of blocks) {
+        if (readCodeBlockLanguage(b) === "tool") return true;
+      }
+    }
+    const text = el.innerText || el.textContent || "";
+    return /```tool\b/.test(text);
   }
 
   function stripTrailingCommas(s) {
@@ -153,23 +221,26 @@
   // ------------------------------------------------------------- completion
 
   function isStreaming() {
-    if (document.querySelector(ADAPTER.streamingIndicator)) return true;
-    if (document.querySelector(ADAPTER.stopButton)) return true;
+    if (ADAPTER.streamingIndicator &&
+        document.querySelector(ADAPTER.streamingIndicator)) {
+      return true;
+    }
+    if (ADAPTER.stopButton &&
+        document.querySelector(ADAPTER.stopButton)) {
+      return true;
+    }
     return false;
   }
 
-  // Return the latest assistant message element that contains a ```tool
-  // fence, or null. This differs from "just take the last match" because on
-  // some sites the assistantMessage selector matches multiple nested nodes;
-  // we want the outermost one that carries the tool block.
+  // Return the latest assistant message element that contains a tool block,
+  // or the latest assistant message if none do (caller checks). Preferring
+  // the one with the tool block guards against sites whose selector matches
+  // multiple nested nodes per reply.
   function latestAssistantMessage() {
     const els = document.querySelectorAll(ADAPTER.assistantMessage);
     if (!els.length) return null;
-    // Walk backwards; return the first element whose text contains a
-    // ```tool fence. If none do, return the last one anyway (caller checks).
     for (let i = els.length - 1; i >= 0; i--) {
-      const t = els[i].innerText || els[i].textContent || "";
-      if (/```tool\b/.test(t)) return els[i];
+      if (hasToolBlock(els[i])) return els[i];
     }
     return els[els.length - 1];
   }
@@ -317,8 +388,7 @@
   }
 
   async function handleCompletedMessage(msgEl) {
-    const text = msgEl.innerText || msgEl.textContent || "";
-    const blocks = extractToolBlocks(text);
+    const blocks = extractToolBlocks(msgEl);
     if (!blocks.length) return;
 
     const msgId = messageIdOf(msgEl);
@@ -381,8 +451,7 @@
     if (isStreaming()) return;
     const msgId = messageIdOf(el);
     if (msgId === lastProcessedMessageId) return;
-    const text = el.innerText || el.textContent || "";
-    if (!/```tool\b/.test(text)) return;
+    if (!hasToolBlock(el)) return;
     lastProcessedMessageId = msgId;
     handleCompletedMessage(el).catch((e) => {
       showOverlay("error: " + String(e));
@@ -390,7 +459,11 @@
   }
 
   const mo = new MutationObserver(onMutations);
-  mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+  mo.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
   setInterval(checkForCompletedAssistantMessage, 2000);
 
   // -------------------------------------------------------------- diagnostic
@@ -410,7 +483,8 @@
       streamingIndicator: ADAPTER.streamingIndicator,
       input: ADAPTER.input,
       sendButton: ADAPTER.sendButton,
-      stopButton: ADAPTER.stopButton
+      stopButton: ADAPTER.stopButton,
+      toolBlockSelector: ADAPTER.toolBlockSelector || ""
     })) {
       let el = null;
       let count = 0;
@@ -427,6 +501,20 @@
         sample: el ? el.outerHTML.slice(0, 240) : null
       };
     }
+
+    // If the adapter uses the DOM extraction path, also report what it sees
+    // on the latest assistant message.
+    const latest = latestAssistantMessage();
+    if (latest && ADAPTER.toolBlockSelector) {
+      const blocks = latest.querySelectorAll(ADAPTER.toolBlockSelector);
+      report.codeBlocks = Array.from(blocks).map((b) => ({
+        lang: readCodeBlockLanguage(b),
+        preview: (b.querySelector(ADAPTER.toolBlockBodySelector || "pre")
+          ?.textContent || "").slice(0, 120)
+      }));
+    }
+    report.toolBlocksInLatest = latest ? extractToolBlocks(latest) : [];
+
     console.log("%c[Hoseki] diagnostic", "font-weight:bold");
     console.table(Object.fromEntries(
       Object.entries(report.selectors).map(([k, v]) => [
