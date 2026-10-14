@@ -90,15 +90,22 @@ All paths are relative to the configured workspace root.
 
 | Tool          | What it does                                                          | Approval  |
 | ------------- | --------------------------------------------------------------------- | --------- |
-| `list_dir`    | List a directory, optionally to a given depth                         | automatic |
+| `tree`        | Recursive directory tree with a count summary. Skips `.gitignore`'d paths and common build/cache dirs (`node_modules`, `.next`, `__pycache__`, `target`, `dist`, `build`, `.venv`, …). | automatic |
+| `list_dir`    | Shallow directory listing. Symlinks shown with their target, never followed. | automatic |
 | `read_file`   | Read numbered lines with a range, truncation flag, and total line count | automatic |
-| `grep`        | Regex search (uses `ripgrep` if installed, Python fallback otherwise) | automatic |
-| `find_files`  | Glob for files                                                        | automatic |
-| `write_file`  | Write a file, shows a diff first                                      | **you approve** |
+| `grep`        | Regex search (uses `ripgrep` if installed, Python fallback otherwise). Respects `.gitignore` and the same skip list as `tree`. | automatic |
+| `find_files`  | Glob for files. Same ignore rules as `grep`.                          | automatic |
+| `write_file`  | Write or append to a file (`mode="w"` overwrites, `mode="a"` appends). Shows a diff first. | **you approve** |
 | `apply_patch` | Apply a unified diff, fails cleanly if it doesn't apply               | **you approve** |
 | `run_cmd`     | Run a command (allowlist and/or Docker sandbox)                       | **you approve** |
 
 Reads are auto-approved. Writes and commands **never** are.
+
+The read tools skip paths matched by `.gitignore` at the workspace root,
+plus a built-in list of caches and build outputs, so the model doesn't
+waste context on `node_modules` or `__pycache__`. Add your own exclusions
+under `[ignore]` in `config.toml` (`extra_dirs` and `extra_files`). Pass
+`"respect_ignore": false` on an individual call to opt out.
 
 ## 🔒 Security Model
 

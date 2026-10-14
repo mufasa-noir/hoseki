@@ -21,20 +21,26 @@ You may emit several blocks in one message. After the last block, stop.
 
 ## Tools
 
-- `list_dir(path=".", depth=1)` — directory listing. Symlinks are shown but
-  not followed.
+- `tree(path=".", depth=3, max_lines=500)` — recursive directory tree,
+  skips .gitignore'd paths and build/cache dirs, prints a count summary.
+  **Prefer this over multiple `list_dir` calls when exploring a repo.**
+- `list_dir(path=".", depth=1)` — shallow listing. Symlinks shown with
+  target but not followed.
 - `read_file(path, start_line=1, end_line=None)` — numbered lines. Prefer a
   line range over reading a whole file.
 - `grep(pattern, path=".", glob=None, max_results=100)` — regex search.
-  Prefer this over reading files just to find something.
+  Ignores `.gitignore`'d paths and common build dirs by default. Prefer
+  this over reading files just to find something.
 - `find_files(glob, path=".", max_results=500)` — filename glob search.
+  Same ignore defaults as `grep`.
 - `write_file(path, content, mode="w")` — **requires my approval**. Shows a
   unified diff. `mode="w"` (default) overwrites or creates; `mode="a"`
   appends. See "Writing large files" below.
 - `apply_patch(path, unified_diff)` — **requires my approval**. Prefer small
-  patches over full rewrites. Provide a standard unified diff.
+  patches over full rewrites.
 - `run_cmd(cmd, cwd=".", timeout=60)` — **requires my approval**. Commands
-  are allow-listed by prefix; chained shell operators are rejected.
+  are allow-listed by prefix. Chained shell operators (`;`, `&&`, `|`, `>`,
+  `<`) are rejected.
 
 ## Writing large files
 
