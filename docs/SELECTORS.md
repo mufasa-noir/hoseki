@@ -17,13 +17,17 @@ Each adapter is an entry in the `ADAPTERS` object near the top of `content.js`, 
 
 Keep the two in sync, or the two browsers will behave differently. (If you've moved the adapters into their own file, edit them there instead.)
 
-An entry is keyed by **hostname** (`chat.z.ai`, with no `https://` and no path). A key also matches its subdomains, so `kimi.com` covers `www.kimi.com` too.
+An entry is keyed by **hostname** (`chat.z.ai`, with no `https://` and no path). A key also matches its subdomains, so `kimi.com` covers `www.kimi.com` too. It does **not** match other domains, and wildcards like `kimi.*` match nothing. If a site lives on two domains (Kimi uses both `kimi.com` and `kimi.ai`), give each its own key. The easiest way is to alias one entry to the other, right after the `ADAPTERS` object: `ADAPTERS["kimi.ai"] = ADAPTERS["kimi.com"];`.
 
 ```js
 "example.ai": {
-  name: "Example AI (verified 2026-10-13)",
+  name: "Example AI",
+  verified: "2026-10-13",
   assistantMessage: "[data-role='assistant']",
   messageIdAttr: "data-message-id",
+  toolBlockSelector: ".code-block",
+  toolBlockLangSelector: ".code-block-lang",
+  toolBlockBodySelector: "pre",
   streamingIndicator: "[data-streaming='true']",
   input: "textarea, [contenteditable='true'][role='textbox']",
   sendButton: "button[type='submit'], button[aria-label*='send' i]",
@@ -37,12 +41,15 @@ An entry is keyed by **hostname** (`chat.z.ai`, with no `https://` and no path).
 | -------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `assistantMessage`   | **One element per assistant reply**: the whole reply, not a paragraph or code block inside it | Hoseki reads the **last** match as the newest reply and looks for `tool` blocks in it |
 | `messageIdAttr`      | The name of an attribute that holds a unique id per message (e.g. `data-message-id`) | Stops the same reply from being processed twice. Optional: if the attribute is missing, Hoseki falls back to a text hash |
+| `toolBlockSelector`  | **One element per code block** in a reply: the outer box that holds both the language label and the code | Hoseki finds these inside the newest reply and keeps the ones whose language is `tool`. Optional, but most modern chat sites need it (see step 6) |
+| `toolBlockLangSelector` | The element **inside** each block whose text is the language name (e.g. `tool`)  | Hoseki checks that the text is `tool`. Optional if the language is a `language-xxx` class on the block itself |
+| `toolBlockBodySelector` | The element **inside** each block that holds the code (defaults to `pre`)       | Where Hoseki reads the JSON from, e.g. `.cm-content` for a CodeMirror editor |
 | `streamingIndicator` | An element that exists **only while the model is generating**                      | Hoseki waits until it's gone before acting on a reply                   |
 | `stopButton`         | The "Stop generating" button, which exists **only while the model is generating**  | Same as above; either one matching means "still streaming"              |
 | `input`              | The chat box you type in (a `textarea` or a `contenteditable` element)             | Where Hoseki inserts the `tool_result` block                            |
 | `sendButton`         | The send button                                                                    | Only used by the optional auto-send feature                             |
 
-Every selector can be a comma-separated list (`"a, b, c"`), which is handy for covering small differences between page versions. If you see any `PUT_SELECTOR_HERE` placeholders, replace them with real selectors.
+Every selector can be a comma-separated list (`"a, b, c"`), which is handy for covering small differences between page versions. If you see any `PUT_SELECTOR_HERE` placeholders, replace them with real selectors. An entry also has a `name` (shown in the overlay and the Console) and a `verified` date string, which helps you see how stale an adapter is.
 
 ## Step by Step
 
@@ -98,7 +105,45 @@ It must print `true` **while the model is generating** and `false` once it has f
 
 Type a few characters so the button is enabled, then check that `document.querySelector("YOUR_SELECTOR")` returns the send button. It's often disabled when the box is empty.
 
-### 6. Reload and verify
+### 6. `toolBlockSelector`, `toolBlockLangSelector`, `toolBlockBodySelector`
+
+Sites show code in one of two ways, and the answer decides whether you need these three fields. Run this on a reply where the model emitted a `tool` block:
+
+```js
+$$("YOUR_ASSISTANT_SELECTOR").at(-1).innerText.includes("```tool")
+```
+
+- **`true`**: the fence survives as plain text. Leave all three fields out; Hoseki finds the block by searching the reply's text.
+- **`false`**: the site turns the fence into a code-block widget and the backticks are gone from the page (DeepSeek, Kimi and GLM all do this). Without these three fields Hoseki can't see tool calls on that site at all.
+
+To find them, use the element picker on the `tool` code block and walk up until the highlight covers **both** the language label and the code, then test:
+
+```js
+const blocks = $$("YOUR_BLOCK_SELECTOR");
+blocks.length
+// should equal the number of code blocks in the newest reply
+const b = blocks.at(-1);
+
+b.querySelector("YOUR_LANG_SELECTOR")?.textContent.trim()
+// should be "tool". If there's no label element, look at b.className
+// for something like "language-tool"; Hoseki reads that automatically,
+// so you can leave toolBlockLangSelector out.
+
+const txt = b.querySelector("YOUR_BODY_SELECTOR").textContent.trim();
+JSON.parse(txt)
+// should parse without an error
+```
+
+Things to watch for:
+
+- **Pick the outer box.** If the selector matches only the code, Hoseki can't read the language, because the label lives outside the match. The language text must be a single word (letters, digits, `_`, `+`, `-`; up to 20 characters).
+- **Keep thinking panels out.** Reasoning models often draft `tool` blocks inside a "Thinking" section, and you don't want those to fire. If the panel has its own container class, exclude it, as the GLM adapter does: `".language-tool:not(.thinking-chain-container *)"`.
+- **Code editors read line by line.** `textContent` joins lines without newlines. That's fine for JSON, since a raw newline can't appear inside a JSON string, so pretty-printed blocks still parse.
+- **Long blocks may be cut off.** Some sites (GLM's CodeMirror) only render the lines near the visible area, so a very long block may be incomplete in the page, the JSON fails to parse, and nothing happens. Keep tool calls small (use `apply_patch` rather than a large `write_file`).
+
+`hosekiDiagnose()` (step 7) lists the code blocks it found in the newest reply with their language, and whatever tool calls parsed from them.
+
+### 7. Reload and verify
 
 1. Save `content.js` (in both folders).
 2. Reload the extension: `chrome://extensions` (reload icon) or `about:debugging#/runtime/this-firefox` (**Reload**).
@@ -106,8 +151,10 @@ Type a few characters so the button is enabled, then check that `document.queryS
 4. Open the Console. You should see:
 
 ```text
-[Hoseki] content script active for <host> adapter: <name>
+[Hoseki] content script active on <host> — adapter: <name> (verified: <date>) — run window.__hosekiDebug = true for verbose logs
 ```
+
+5. On a page that already has a tool block in the newest reply, run `hosekiDiagnose()` in the Console. It prints a table with how many elements each selector matches. `assistantMessage`, `input` and `toolBlockSelector` should each show at least 1. A selector you left empty (for example `streamingIndicator` on a site where it isn't usable) shows `(error)`, which is expected. The full report also lists `codeBlocks` (language and a preview of each) and `toolBlocksInLatest` (the calls Hoseki actually parsed).
 
 Then ask the model to list your workspace and check that the overlay appears and the `tool_result` block lands in the input box.
 
@@ -118,11 +165,12 @@ Then ask the model to list your workspace and check that the overlay appears and
 - **Mind the UI language.** `aria-label` text follows the site's language. Set the site to English, or list both variants.
 - **Keep them short.** Long chains like `div > div > div > span` break the moment the layout shifts.
 - **Cover variants** with a comma list: `"[data-role='assistant'], .message-assistant"`.
-- **Date your adapter.** Put "verified YYYY-MM-DD" in the `name` so you know how stale it is.
+- **Date your adapter.** Set the `verified` field to the date you last checked it (`"YYYY-MM-DD"`) so you know how stale it is.
+- **Mind browser support.** `:has()` needs Chrome 105+ or Firefox 121+, but the Firefox build targets 115+. An adapter that relies on `:has()` (DeepSeek's does) won't work on Firefox 115 to 120.
 
 ## Adding a New Site
 
-1. Add an entry to `ADAPTERS` in `content.js`, in **both** `extension/chrome/` and `extension/firefox/`, using the hostname as the key.
+1. Add an entry to `ADAPTERS` in `content.js`, in **both** `extension/chrome/` and `extension/firefox/`, using the hostname as the key (one key per domain, see the top of this guide).
 2. Add the site's URL pattern (for example `https://chat.example.ai/*`) to `content_scripts[0].matches` in **both** `manifest.json` files. If your Firefox manifest also lists sites under host permissions, add it there too.
 3. Reload the extension and the chat tab, then work through the steps above.
 
@@ -132,7 +180,11 @@ Then ask the model to list your workspace and check that the overlay appears and
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | No `[Hoseki] content script active` line in the Console | The site's hostname doesn't match an adapter key, or its URL isn't in the manifest's `matches` |
 | Line appears, but nothing happens when the model emits a tool block | Re-run step 1: `assistantMessage` probably doesn't match the newest reply. Then step 4: a stuck streaming selector keeps Hoseki waiting |
-| `assistantMessage` looks right, but still nothing    | Run `$$("YOUR_SELECTOR").at(-1).innerText` and make sure it contains the tool block as text. Hoseki looks for a fenced `tool` block in the reply's text, and some UIs render code blocks in a way that hides the fences |
+| `assistantMessage` looks right, but still nothing    | Run `$$("YOUR_SELECTOR").at(-1).innerText.includes("```tool")`. If it's `false`, the site hides the fences in a code-block widget, and you need the three `toolBlock*` fields (step 6). Then check `hosekiDiagnose().toolBlocksInLatest` |
+| `hosekiDiagnose()` shows code blocks but `lang` is empty | `toolBlockLangSelector` matches nothing inside the block. Fix it, or check whether the block has a `language-xxx` class (step 6) |
+| Short tool calls work, long ones do nothing          | The site only renders part of a long code block in the page, so the JSON is incomplete. Keep calls small: `apply_patch` instead of a big `write_file` |
+| A tool call fires from the model's reasoning         | The block selector also matches inside a "thinking" panel. Exclude it with `:not(...)` (step 6) |
+| `[Hoseki] no adapter for <host>` in the Console      | The host has no adapter key. Add one, and note that a key matches its subdomains but not other domains and not wildcards |
 | Overlay says it couldn't find the chat input         | Fix `input` (step 3)                                                                       |
 | Results land in the box but aren't sent              | Expected: the default mode is semi-automatic, so you press send yourself                   |
 | Need to re-run the completion check right now        | In the page's Console: `window.dispatchEvent(new Event("hoseki:trigger"))` (it still waits while the model is streaming) |

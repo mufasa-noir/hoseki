@@ -287,8 +287,9 @@ Each adapter is an entry in the `ADAPTERS` object near the top of `extension/chr
 1. Open the chat site, press **F12**, and use the element picker (**Ctrl+Shift+C**) on the newest assistant reply. Walk up to the element that wraps one whole reply.
 2. Test candidate selectors in the DevTools Console with `$$("selector")`. `assistantMessage` must match **one element per assistant reply**, and the **last** match must be the newest reply.
 3. Do the same for `input` (the box you type in) and `sendButton`. While the model is streaming, check `streamingIndicator` and `stopButton`: these two must match **only** while it is generating.
-4. Prefer stable hooks (`data-*`, `role`, `aria-label`, meaningful tags) over auto-generated class names, which change on every site update.
-5. Save, reload the extension, reload the chat tab, and look for `[Hoseki] content script active for <host> adapter: <name>` in the Console.
+4. Check how the site shows code. On a reply that contains a `tool` block, run `` $$("YOUR_ASSISTANT_SELECTOR").at(-1).innerText.includes("```tool") ``. If it's `false`, the site hides the fence inside a code-block widget, so you also need `toolBlockSelector` (one element per code block, holding both the language label and the code), `toolBlockLangSelector` (the language label inside it; optional if the block has a `language-xxx` class) and `toolBlockBodySelector` (the element holding the code; `pre` by default). If it's `true`, skip these three.
+5. Prefer stable hooks (`data-*`, `role`, `aria-label`, meaningful tags) over auto-generated class names, which change on every site update.
+6. Save, reload the extension, reload the chat tab, and look for `[Hoseki] content script active on <host> — adapter: <name> (verified: <date>)` in the Console. Then run `hosekiDiagnose()`: `assistantMessage`, `input` and `toolBlockSelector` should each match at least 1.
 
 The full walkthrough, with a field reference, examples, and troubleshooting, is in [docs/SELECTORS.md](docs/SELECTORS.md).
 

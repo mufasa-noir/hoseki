@@ -283,8 +283,9 @@ Hoseki は、テキスト入力欄があり、フェンスコードブロック�
 1. チャットサイトを開き、**F12** を押して、要素ピッカー（**Ctrl+Shift+C**）で最新のアシスタントの返信をクリックします。親要素をたどって、1 件の返信全体を包んでいる要素を見つけます。
 2. DevTools のコンソールで `$$("セレクター")` を使い、候補をテストします。`assistantMessage` は**アシスタントの返信 1 件につき 1 要素**に一致し、**最後の**一致が最新の返信でなければなりません。
 3. `input`（入力するボックス）と `sendButton` も同様に確認します。モデルのストリーミング中には `streamingIndicator` と `stopButton` を確認します。この 2 つは、生成中に**だけ**一致する必要があります。
-4. サイトの更新のたびに変わる自動生成のクラス名より、安定した手がかり（`data-*`、`role`、`aria-label`、意味を持つタグ）を優先してください。
-5. 保存して拡張機能を再読み込みし、チャットのタブも再読み込みして、コンソールに `[Hoseki] content script active for <host> adapter: <name>` と表示されることを確認します。
+4. サイトがコードをどう表示しているかを確認します。`tool` ブロックを含む返信で `` $$("YOUR_ASSISTANT_SELECTOR").at(-1).innerText.includes("```tool") `` を実行してください。`false` なら、サイトがフェンスをコードブロックの部品の中に隠しているので、`toolBlockSelector`（言語ラベルとコードの両方を含む、コードブロック 1 つにつき 1 要素）、`toolBlockLangSelector`（その中の言語ラベル。ブロックに `language-xxx` クラスがあれば省略可）、`toolBlockBodySelector`（コード本体の要素。省略時は `pre`）も必要です。`true` なら、この 3 つは不要です。
+5. サイトの更新のたびに変わる自動生成のクラス名より、安定した手がかり（`data-*`、`role`、`aria-label`、意味を持つタグ）を優先してください。
+6. 保存して拡張機能を再読み込みし、チャットのタブも再読み込みして、コンソールに `[Hoseki] content script active on <host> — adapter: <name> (verified: <date>)` と表示されることを確認します。そのうえで `hosekiDiagnose()` を実行し、`assistantMessage`、`input`、`toolBlockSelector` がそれぞれ 1 以上になることを確認します。
 
 フィールドの説明、例、トラブルシューティングを含む完全な手順は [docs/SELECTORS_ja.md](docs/SELECTORS_ja.md) を参照してください。
 
