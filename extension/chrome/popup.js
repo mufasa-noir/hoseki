@@ -8,7 +8,7 @@ const DEFAULTS = {
 
 const SUPPORTED_HOSTS = [
   "chat.z.ai", "z.ai",
-  "kimi.com",
+  "kimi.com", "kimi.ai",
   "chat.deepseek.com", "deepseek.com"
 ];
 

@@ -83,6 +83,7 @@
         "div[role='button'].ds-button--primary.ds-button--circle:not(.ds-button--disabled)"
     }
   };
+  ADAPTERS["kimi.ai"] = ADAPTERS["kimi.com"];
 
   function adapterForHost(host) {
     if (ADAPTERS[host]) return ADAPTERS[host];

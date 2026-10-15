@@ -19,6 +19,8 @@
         "https://*.z.ai/*",
         "https://kimi.com/*",
         "https://*.kimi.com/*",
+        "https://kimi.ai/*",
+        "https://*.kimi.ai/*",
         "https://www.kimi.com/*",
         "https://chat.deepseek.com/*",
         "https://*.deepseek.com/*"
