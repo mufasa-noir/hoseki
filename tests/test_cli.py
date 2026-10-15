@@ -10,4 +10,4 @@ def test_version_option(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--version"])
 
     assert exc_info.value.code == 0
-    assert capsys.readouterr().out == "hoseki 0.2.1\n"
+    assert capsys.readouterr().out == "hoseki 0.2.2\n"
