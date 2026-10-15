@@ -319,7 +319,7 @@ The test suite covers path-jail escapes (`..`, absolute paths, symlinks), auth a
 - [x] **Phase 3**: `run_cmd` with allowlist and Docker sandbox
 - [x] **Phase 4**: Browser extensions for Chrome (`extension/chrome/`) and Firefox (`extension/firefox/`): background worker, content script, popup, site adapters
 - [x] **Phase 5**: Preamble, full docs, and end-to-end test checklist
-- [ ] **Phase 6 (optional)**: `hoseki mcp` stdio (JSON-RPC) adapter reusing the same context, for clients that support MCP natively
+- [x] **Phase 6 (optional)**: `hoseki mcp` stdio (JSON-RPC) adapter reusing the same context, for clients that support MCP natively
 
 ## 📜 License
 
