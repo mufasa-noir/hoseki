@@ -9,8 +9,8 @@
 // verbose logs from the mutation/completion checks.
 //
 // Supported sites:
-//   - chat.z.ai         (GLM)      — selectors best-effort, unverified
-//   - kimi.com          (Kimi)     — selectors best-effort, unverified
+//   - chat.z.ai         (GLM)      — selectors verified 2026-10-15
+//   - kimi.com / kimi.ai (Kimi)    — selectors verified 2026-10-15
 //   - chat.deepseek.com (DeepSeek) — selectors verified 2026-10-14
 //
 // IMPORTANT — DeepSeek renders ```tool fences as structured code blocks
@@ -35,28 +35,30 @@
   const ADAPTERS = {
     "chat.z.ai": {
       name: "GLM / z.ai",
-      verified: "never",
+      verified: "2026-10-15",
       assistantMessage:
-        "[data-message-role='assistant'], .chat-assistant, .message-assistant",
-      messageIdAttr: "data-message-id",
-      streamingIndicator:
-        "[data-streaming='true'], .streaming, .is-streaming",
-      input: "textarea, [contenteditable='true'][role='textbox']",
-      sendButton: "button[type='submit'], button[aria-label*='Send' i]",
-      stopButton:
-        "button[aria-label*='Stop' i], button[data-stop='true']"
+        "div[id^='message-']:not(.user-message):not([id$='-start'])",
+      messageIdAttr: "id",
+      toolBlockSelector: ".language-tool:not(.thinking-chain-container *)",
+      toolBlockBodySelector: ".cm-content",
+      streamingIndicator: "",
+      stopButton: "",
+      input: "textarea#chat-input",
+      sendButton: "#send-message-button:not([disabled])"
     },
 
     "kimi.com": {
       name: "Kimi",
-      verified: "never",
-      assistantMessage:
-        ".segment-assistant, [data-role='assistant'], .chat-message.assistant",
-      messageIdAttr: "data-message-id",
-      streamingIndicator: ".is-streaming, [data-streaming='true']",
+      verified: "2026-10-15",
+      assistantMessage: ".chat-content-item-assistant",
+      messageIdAttr: "data-archer-id",
+      toolBlockSelector: ".segment-code",
+      toolBlockLangSelector: ".segment-code-lang",
+      toolBlockBodySelector: "pre",
+      streamingIndicator: "",
+      stopButton: "",
       input: "textarea, [contenteditable='true'][role='textbox']",
-      sendButton: "button[type='submit'], .send-button",
-      stopButton: "button[aria-label*='Stop' i], .stop-button"
+      sendButton: ".send-button-container:not(.disabled)"
     },
 
     "chat.deepseek.com": {
@@ -71,11 +73,6 @@
       toolBlockSelector: ".md-code-block",
       toolBlockLangSelector: ".md-code-block-banner span",
       toolBlockBodySelector: "pre",
-
-      // Intentionally empty. The send button and the stop slot share the
-      // same classes (`ds-button--primary ds-button--circle`), so any
-      // selector that matches the stop button also matches the idle send
-      // button. We rely on the 900 ms mutation debounce instead.
       streamingIndicator: "",
       stopButton: "",
 
@@ -151,13 +148,18 @@
   }
 
   function readCodeBlockLanguage(block) {
-    if (!ADAPTER.toolBlockLangSelector) return "";
-    const spans = block.querySelectorAll(ADAPTER.toolBlockLangSelector);
-    for (const s of spans) {
-      const t = s.textContent.trim();
-      if (/^[a-zA-Z][a-zA-Z0-9_+-]{0,19}$/.test(t)) return t;
+    if (ADAPTER.toolBlockLangSelector) {
+      const spans = block.querySelectorAll(ADAPTER.toolBlockLangSelector);
+      for (const s of spans) {
+        const t = s.textContent.trim();
+        if (/^[a-zA-Z][a-zA-Z0-9_+-]{0,19}$/.test(t)) return t;
+      }
     }
-    return "";
+    // Fallback: some sites put the language on the block itself as a
+    // "language-xxx" class (GLM / z.ai).
+    const m = /(?:^|\s)language-([a-zA-Z][a-zA-Z0-9_+-]{0,19})(?:\s|$)/
+      .exec(block.className || "");
+    return m ? m[1] : "";
   }
 
   function hasToolBlock(el) {
