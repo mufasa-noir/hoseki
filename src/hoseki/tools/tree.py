@@ -15,7 +15,18 @@ class TreeArgs(BaseModel):
     path: str = "."
     depth: int = Field(3, ge=1, le=20)
     max_lines: int = Field(500, ge=10, le=10000)
+    show_sizes: bool = Field(True, description="Append human-readable file sizes")
     respect_ignore: bool = True
+
+
+def _human_size(n: int) -> str:
+    if n < 1024:
+        return f"{n} B"
+    for unit in ("KB", "MB", "GB"):
+        n /= 1024.0
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+    return f"{n:.1f} TB"
 
 
 def tree(args: TreeArgs, ctx: ToolContext) -> ToolResult:
@@ -37,7 +48,6 @@ def tree(args: TreeArgs, ctx: ToolContext) -> ToolResult:
         nonlocal truncated, dir_count, file_count, ignored_count
         if truncated or depth > args.depth:
             return
-
         try:
             entries = sorted(
                 directory.iterdir(),
@@ -47,8 +57,6 @@ def tree(args: TreeArgs, ctx: ToolContext) -> ToolResult:
             lines.append(f"{prefix}[error: {e}]")
             return
 
-        # Prune ignored before we decide on the tree characters, so the
-        # visible children are what we render.
         visible: list[Path] = []
         for entry in entries:
             try:
@@ -85,20 +93,26 @@ def tree(args: TreeArgs, ctx: ToolContext) -> ToolResult:
                 walk(entry, next_prefix, depth + 1)
             else:
                 file_count += 1
-                lines.append(f"{prefix}{branch}{entry.name}")
+                suffix = ""
+                if args.show_sizes:
+                    try:
+                        suffix = f" [{_human_size(entry.stat().st_size)}]"
+                    except OSError:
+                        suffix = " [?]"
+                lines.append(f"{prefix}{branch}{entry.name}{suffix}")
 
     walk(root, "", 1)
-
     if truncated:
         lines.append("…[truncated]")
 
-    summary_parts: list[str] = []
-    summary_parts.append(f"{dir_count} director{'y' if dir_count == 1 else 'ies'}")
-    summary_parts.append(f"{file_count} file{'s' if file_count != 1 else ''}")
+    summary: list[str] = [
+        f"{dir_count} director{'y' if dir_count == 1 else 'ies'}",
+        f"{file_count} file{'s' if file_count != 1 else ''}",
+    ]
     if ignored_count:
-        summary_parts.append(f"{ignored_count} ignored")
+        summary.append(f"{ignored_count} ignored")
     lines.append("")
-    lines.append(", ".join(summary_parts))
+    lines.append(", ".join(summary))
 
     return ToolResult(ok=True, output="\n".join(lines), truncated=truncated)
 
