@@ -1,6 +1,6 @@
 [project]
 name = "hoseki"
-version = "0.2.2"
+version = "0.3.0"
 description = "Local tool bridge that lets free web chat UIs act on your machine."
 readme = "README.md"
 requires-python = ">=3.11"

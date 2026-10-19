@@ -152,7 +152,7 @@ cd hoseki
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
-hoseki --version                   # should print: hoseki 0.2.2
+hoseki --version                   # should print: hoseki 0.3.0
 ```
 
 ### Step 2: Configure
@@ -179,7 +179,7 @@ hoseki serve --config ./config.toml
 You should see a line like this, and the process should keep running:
 
 ```
-hoseki 0.2.2 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
 ```
 
 Leave this terminal open: **approval prompts appear here.** Your auth token lives at `~/.hoseki/token`.

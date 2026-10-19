@@ -47,7 +47,7 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
 ```
 
-> **Checkpoint:** `hoseki --version` prints `hoseki 0.2.2`. If `hoseki` isn't found, you're not in the venv. Run `source .venv/bin/activate` again.
+> **Checkpoint:** `hoseki --version` prints `hoseki 0.3.0`. If `hoseki` isn't found, you're not in the venv. Run `source .venv/bin/activate` again.
 
 ## Step 3: Configure
 
@@ -83,7 +83,7 @@ hoseki serve --config ./config.toml
 > **Checkpoint:** you see this line and the process stays running (no exit):
 >
 > ```text
-> Hoseki 0.2.2 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+> Hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
 > ```
 
 **Keep this terminal open.** Approval prompts will appear here later. Do the rest of the steps in a second terminal.
@@ -103,7 +103,7 @@ First, check health (no auth needed):
 curl -s $HOSEKI/v1/health | jq
 ```
 
-> **Checkpoint:** prints `{"ok": true, "service": "hoseki", "version": "0.2.2"}`.
+> **Checkpoint:** prints `{"ok": true, "service": "hoseki", "version": "0.3.0"}`.
 
 Now list the workspace:
 

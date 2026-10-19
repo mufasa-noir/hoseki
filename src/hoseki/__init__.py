@@ -1,7 +1,7 @@
 """Tool registry."""
 from __future__ import annotations
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 from hoseki.tools.base import Tool, ToolResult
 from hoseki.tools.find_files import FindFilesArgs, find_files
