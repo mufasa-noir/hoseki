@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,6 +22,13 @@ class GrepArgs(BaseModel):
     path: str = "."
     glob: str | None = None
     max_results: int = Field(100, ge=1, le=1000)
+    context: int = Field(0, ge=0, le=10,
+                        description="Lines of context before/after each match")
+    mode: Literal["content", "files", "count"] = Field(
+        "content",
+        description="content = matching lines; files = only paths; "
+                    "count = per-file match counts",
+    )
     respect_ignore: bool = True
 
 
@@ -37,64 +45,53 @@ def grep(args: GrepArgs, ctx: ToolContext) -> ToolResult:
     max_results = min(args.max_results, ctx.limits.max_grep_results)
     rg = shutil.which("rg")
     if rg is not None:
-        result = _grep_rg(
-            rg, args.pattern, target, args.glob, max_results, ctx,
-            respect_ignore=args.respect_ignore,
-        )
+        result = _grep_rg(rg, args, target, max_results, ctx)
         if result is not None:
             return result
-
-    return _grep_py(
-        args.pattern, target, args.glob, max_results, ctx,
-        respect_ignore=args.respect_ignore,
-    )
+    return _grep_py(args, target, max_results, ctx)
 
 
-def _grep_rg(
-    rg: str,
-    pattern: str,
-    target: Path,
-    glob_pattern: str | None,
-    max_results: int,
-    ctx: ToolContext,
-    respect_ignore: bool,
-) -> ToolResult | None:
-    cmd = [
-        rg,
-        "--no-heading",
-        "--line-number",
-        "--color", "never",
-        "--with-filename",
-        "--max-columns", "500",
-        "--max-columns-preview",
-        "-e", pattern,
-    ]
+def _build_rg_cmd(rg: str, args: GrepArgs, target: Path,
+                  ctx: ToolContext) -> list[str]:
+    cmd = [rg, "--color", "never", "--no-heading", "--with-filename"]
+    if args.mode == "files":
+        cmd.append("--files-with-matches")
+    elif args.mode == "count":
+        cmd.append("--count-matches")
+    else:
+        cmd.extend(["--line-number", "--max-columns", "500",
+                    "--max-columns-preview"])
+        if args.context > 0:
+            cmd.extend(["-C", str(args.context)])
 
-    if respect_ignore:
-        # Belt-and-braces: even if the user's .gitignore doesn't list
-        # these, rg should never scan into them.
+    cmd.extend(["-e", args.pattern])
+
+    if args.respect_ignore:
         for d in DEFAULT_IGNORE_DIRS:
-            cmd += ["--glob", f"!{d}/**"]
+            cmd.extend(["--glob", f"!{d}/**"])
         for d in ctx.ignore.extra_dirs:
-            cmd += ["--glob", f"!{d}/**"]
+            cmd.extend(["--glob", f"!{d}/**"])
         for f in ctx.ignore.extra_files:
-            cmd += ["--glob", f"!{f}"]
+            cmd.extend(["--glob", f"!{f}"])
     else:
         cmd.append("--no-ignore")
 
-    if glob_pattern:
-        cmd += ["--glob", glob_pattern]
+    if args.glob:
+        cmd.extend(["--glob", args.glob])
     cmd.append(str(target))
+    return cmd
 
+
+def _grep_rg(rg: str, args: GrepArgs, target: Path,
+             max_results: int, ctx: ToolContext) -> ToolResult | None:
+    cmd = _build_rg_cmd(rg, args, target, ctx)
     try:
         proc = subprocess.run(
-            cmd,
-            capture_output=True, text=True, timeout=30, check=False,
-            stdin=subprocess.DEVNULL,
+            cmd, capture_output=True, text=True, timeout=30,
+            check=False, stdin=subprocess.DEVNULL,
         )
     except (subprocess.TimeoutExpired, OSError):
         return None
-
     if proc.returncode not in (0, 1):
         return None
 
@@ -105,7 +102,7 @@ def _grep_rg(
         truncated = True
 
     root_str = str(ctx.jail.root)
-    cleaned: list[str] = []
+    cleaned = []
     for line in lines:
         if line.startswith(root_str):
             line = line[len(root_str):].lstrip("/\\")
@@ -116,31 +113,51 @@ def _grep_rg(
     return ToolResult(ok=True, output="\n".join(cleaned), truncated=truncated)
 
 
-def _grep_py(
-    pattern: str,
-    target: Path,
-    glob_pattern: str | None,
-    max_results: int,
-    ctx: ToolContext,
-    respect_ignore: bool,
-) -> ToolResult:
-    regex = re.compile(pattern)
-    rules = ctx.ignore_rules() if respect_ignore else None
-    results: list[str] = []
+def _grep_py(args: GrepArgs, target: Path, max_results: int,
+             ctx: ToolContext) -> ToolResult:
+    regex = re.compile(args.pattern)
+    rules = ctx.ignore_rules() if args.respect_ignore else None
+
+    # For "files" mode, dedupe by path.
+    files_hit: list[str] = []
+    content_lines: list[str] = []
+    count_lines: list[str] = []
     truncated = False
 
-    def scan_file(p: Path) -> bool:
+    def emit(file_rel: str, line_no: int, line: str,
+             file_lines: list[str]) -> None:
+        nonlocal truncated
+        if args.mode == "files":
+            if file_rel not in files_hit:
+                files_hit.append(file_rel)
+        elif args.mode == "count":
+            # handled per-file below; nothing here
+            pass
+        else:
+            if args.context == 0:
+                content_lines.append(f"{file_rel}:{line_no}:{line[:500]}")
+            else:
+                lo = max(0, line_no - 1 - args.context)
+                hi = min(len(file_lines), line_no + args.context)
+                content_lines.append(f"{file_rel}-{line_no}- (context)")
+                for i in range(lo, hi):
+                    marker = ":" if i == line_no - 1 else "-"
+                    content_lines.append(
+                        f"{file_rel}{marker}{i + 1}{marker}{file_lines[i][:500]}"
+                    )
+                content_lines.append("")
+
+    def scan(p: Path) -> bool:
         nonlocal truncated
         try:
             rel = p.relative_to(ctx.jail.root)
         except ValueError:
             return False
-        rel_str = str(rel)
-        if is_denied(rel_str, ctx.secrets.deny_globs):
+        if is_denied(str(rel), ctx.secrets.deny_globs):
             return False
         if rules is not None and rules.is_ignored_file(p):
             return False
-        if glob_pattern and not rel.match(glob_pattern):
+        if args.glob and not rel.match(args.glob):
             return False
         try:
             size = p.stat().st_size
@@ -154,28 +171,31 @@ def _grep_py(
             return False
         if b"\x00" in raw[:8192]:
             return False
+
         text = raw.decode("utf-8", errors="replace")
-        for i, line in enumerate(text.splitlines(), start=1):
+        file_lines = text.splitlines()
+        matches = 0
+        for i, line in enumerate(file_lines, start=1):
             if regex.search(line):
-                results.append(f"{rel_str}:{i}:{line[:500]}")
-                if len(results) >= max_results:
-                    truncated = True
-                    return True
+                matches += 1
+                emit(str(rel), i, line, file_lines)
+        if matches and args.mode == "count":
+            count_lines.append(f"{rel}:{matches}")
+        if args.mode == "files":
+            return len(files_hit) >= max_results
+        if args.mode == "content":
+            return len(content_lines) >= max_results
         return False
 
     if target.is_file():
-        scan_file(target)
+        scan(target)
     else:
-        stop = False
         for dirpath, dirnames, filenames in os.walk(target, followlinks=False):
             if rules is not None:
-                keep: list[str] = []
-                for d in dirnames:
-                    abs_d = Path(dirpath) / d
-                    if not rules.is_ignored_dir(abs_d):
-                        keep.append(d)
-                dirnames[:] = keep
-
+                dirnames[:] = [
+                    d for d in dirnames
+                    if not rules.is_ignored_dir(Path(dirpath) / d)
+                ]
             try:
                 dir_rel = Path(dirpath).relative_to(ctx.jail.root)
             except ValueError:
@@ -186,12 +206,22 @@ def _grep_py(
                 if not is_denied(str(dir_rel / d), ctx.secrets.deny_globs)
             ]
             for name in filenames:
-                if scan_file(Path(dirpath) / name):
-                    stop = True
+                if scan(Path(dirpath) / name):
+                    truncated = True
                     break
-            if stop:
+            if truncated:
                 break
 
-    if not results:
+    if args.mode == "files":
+        lines = files_hit
+    elif args.mode == "count":
+        lines = count_lines
+    else:
+        lines = content_lines
+
+    if not lines:
         return ToolResult(ok=True, output="(no matches)")
-    return ToolResult(ok=True, output="\n".join(results), truncated=truncated)
+    if len(lines) > max_results:
+        lines = lines[:max_results]
+        truncated = True
+    return ToolResult(ok=True, output="\n".join(lines), truncated=truncated)
