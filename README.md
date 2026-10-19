@@ -90,10 +90,11 @@ All paths are relative to the configured workspace root.
 
 | Tool          | What it does                                                          | Approval  |
 | ------------- | --------------------------------------------------------------------- | --------- |
-| `tree`        | Recursive directory tree with a count summary. Skips `.gitignore`'d paths and common build/cache dirs (`node_modules`, `.next`, `__pycache__`, `target`, `dist`, `build`, `.venv`, …). | automatic |
+| `tree`        | Recursive directory tree with a count summary. Each file shows its size, so you can see what's worth reading. Skips `.gitignore`'d paths and common build/cache dirs (`node_modules`, `.next`, `__pycache__`, `target`, `dist`, `build`, `.venv`, …). | automatic |
 | `list_dir`    | Shallow directory listing. Symlinks shown with their target, never followed. | automatic |
-| `read_file`   | Read numbered lines with a range, truncation flag, and total line count | automatic |
-| `grep`        | Regex search (uses `ripgrep` if installed, Python fallback otherwise). Respects `.gitignore` and the same skip list as `tree`. | automatic |
+| `read_file`   | Read numbered lines with a range, truncation flag, and total line count. `mode="outline"` returns only declarations with line numbers — cheap way to plan a read. `compact=true` drops the line-number prefix. | automatic |
+| `read_many`   | Read up to 20 files or line ranges in one call. Concatenates results with clear separators. Use this instead of multiple `read_file` calls. | automatic |
+| `grep`        | Regex search (uses `ripgrep` if installed, Python fallback otherwise). `mode="files"` returns paths only; `mode="count"` returns per-file counts; `context=3` returns matching lines with surrounding lines. Respects `.gitignore` and the same skip list as `tree`. | automatic |
 | `find_files`  | Glob for files. Same ignore rules as `grep`.                          | automatic |
 | `write_file`  | Write or append to a file (`mode="w"` overwrites, `mode="a"` appends). Shows a diff first. | **you approve** |
 | `apply_patch` | Apply a unified diff, fails cleanly if it doesn't apply               | **you approve** |
@@ -106,6 +107,17 @@ plus a built-in list of caches and build outputs, so the model doesn't
 waste context on `node_modules` or `__pycache__`. Add your own exclusions
 under `[ignore]` in `config.toml` (`extra_dirs` and `extra_files`). Pass
 `"respect_ignore": false` on an individual call to opt out.
+
+### Token-saving tips
+
+- `tree` with `show_sizes=true` (the default) is the cheapest way to
+  decide what to read next.
+- `read_file(mode="outline")` on a large file before deciding which lines
+  to fetch in full.
+- `grep(mode="files")` answers "which files mention X?" without pulling
+  content.
+- `read_many` reads several files in one round-trip — the biggest
+  round-trip saver when exploring a repo.
 
 ## 🔒 Security Model
 
