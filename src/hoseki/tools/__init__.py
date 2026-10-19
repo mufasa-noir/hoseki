@@ -6,11 +6,11 @@ from hoseki.tools.find_files import FindFilesArgs, find_files
 from hoseki.tools.grep import GrepArgs, grep
 from hoseki.tools.list_dir import ListDirArgs, list_dir
 from hoseki.tools.read_file import ReadFileArgs, read_file
+from hoseki.tools.read_many import ReadManyArgs, read_many
 from hoseki.tools.tree import TreeArgs, tree
 from hoseki.tools.write_file import WriteFileArgs, write_file
 from hoseki.tools.apply_patch import ApplyPatchArgs, apply_patch
 from hoseki.tools.run_cmd import RunCmdArgs, run_cmd
-
 
 TOOLS: dict[str, Tool] = {}
 
@@ -46,6 +46,16 @@ _register(Tool(
                 "are refused.",
     args_model=ReadFileArgs,
     handler=read_file,
+))
+
+_register(Tool(
+    name="read_many",
+    description="Read multiple files or line ranges in a single call "
+                "(up to 20). Concatenates outputs with clear separators. "
+                "Use this instead of multiple read_file calls when you "
+                "already know which files you need.",
+    args_model=ReadManyArgs,
+    handler=read_many,
 ))
 
 _register(Tool(
