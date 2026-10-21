@@ -320,12 +320,50 @@ button.ghost:active { transform: none; }
 
 .foot {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 12px;
 }
-.foot button { flex: 1; }
-.version { color: var(--muted); font: 11px var(--mono); }
+
+.foot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.foot-row button { flex: 1; }
+
+.version {
+  color: var(--muted);
+  font: 11px var(--mono);
+}
+
+/* outlined, not raised — echoes the connection stamp + roman logotype */
+.gh-link {
+  display: block;
+  padding: 5px 10px;
+  background: transparent;
+  color: var(--red-deep);
+  border: 2px solid var(--red);
+  border-radius: 5px;
+  font: 700 11px var(--mono);
+  letter-spacing: .05em;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.gh-link:hover {
+  background: #fde9e4;
+  color: var(--red-deep);
+}
+.gh-link:active {
+  background: #f9d4cc;
+  border-color: var(--red-deep);
+}
+.gh-link:focus-visible {
+  outline: 3px solid rgba(229, 51, 31, .5);
+  outline-offset: 1px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
