@@ -11,3 +11,4 @@ dist/
 config.toml
 *.jsonl
 .DS_Store
+hoseki-sandbox/
