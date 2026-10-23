@@ -143,6 +143,10 @@ There's one build per browser: `extension/chrome/` (Chrome, Edge, Brave, and oth
 
 ### Firefox
 
+Install Hoseki from Firefox Add-ons: https://addons.mozilla.org/addon/hoseki-bridge/
+
+Or load it manually:
+
 1. Open `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on…** and select `extension/firefox/manifest.json` inside your Hoseki clone. Temporary add-ons are removed when Firefox closes, so repeat this next session.
 3. Open the Hoseki popup from the toolbar (use the puzzle-piece Extensions menu if you don't see it).

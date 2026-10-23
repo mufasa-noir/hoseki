@@ -206,8 +206,13 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 **Firefox**
 
+Firefox Add-ons ストアからインストールできます: https://addons.mozilla.org/addon/hoseki-bridge/
+
+手動で読み込む場合は次の手順です。
+
 1. `about:debugging#/runtime/this-firefox` を開きます。
 2. **一時的なアドオンを読み込む…**（Load Temporary Add-on…）をクリックし、`extension/firefox/manifest.json` を選択します。一時的なアドオンは Firefox を閉じると削除されるため、次回のセッションでもう一度行ってください。
+3. ツールバーから Hoseki のポップアップを開きます（見当たらない場合は、パズルピースの形の拡張機能メニューから開いてください）。
 
 **その後、どちらのブラウザでも**
 
