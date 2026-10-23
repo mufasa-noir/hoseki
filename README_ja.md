@@ -130,6 +130,8 @@ Hoseki は**信頼できないコード**に向けて使うことを想定して
 
 > **じっくり安全に進めたい方へ:** [docs/RUNNING_ja.md](docs/RUNNING_ja.md) では、すべてのステップにチェックポイントを付けて順番に解説しています。ここでは短縮版を紹介します。
 
+> 🎥 動画で見たい方へ: Hoseki のセットアップと最初のツール実行のチュートリアルは YouTube で公開しています: [Hoseki セットアップチュートリアル](https://www.youtube.com/watch?v=N1dewHRLSfY)。
+
 ### 前提条件
 
 - Python 3.11 以上（`python3 --version`）と `git`

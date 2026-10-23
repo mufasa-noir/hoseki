@@ -138,6 +138,8 @@ Hoseki is meant to be pointed at **untrusted code**, so it assumes file contents
 
 > **Want the slow, safe version?** [docs/RUNNING.md](docs/RUNNING.md) walks through every step with a checkpoint after each one. What follows is the short version.
 
+> 🎥 Prefer a video walkthrough? Watch the Hoseki setup and first-tools tutorial on YouTube: [Hoseki setup tutorial](https://www.youtube.com/watch?v=N1dewHRLSfY).
+
 ### Prerequisites
 
 - Python 3.11 or newer (`python3 --version`) and `git`
