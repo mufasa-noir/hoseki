@@ -181,7 +181,7 @@ hoseki serve --config ./config.toml
 You should see a line like this, and the process should keep running:
 
 ```
-hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+hoseki 0.3.0 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
 ```
 
 Leave this terminal open: **approval prompts appear here.** Your auth token lives at `~/.hoseki/token`.
@@ -192,7 +192,7 @@ In a second terminal:
 
 ```
 export TOKEN=$(cat ~/.hoseki/token)
-export HOSEKI=http://127.0.0.1:8765
+export HOSEKI=http://127.0.0.1:8787
 
 curl -s $HOSEKI/v1/health | jq
 
@@ -226,7 +226,7 @@ Or load it manually:
 
 **Then, in either browser**
 
-1. Open the Hoseki popup, set **Daemon URL** to `http://127.0.0.1:8765`, paste the contents of `~/.hoseki/token` into **Bearer token**, and click **Save**.
+1. Open the Hoseki popup, set **Daemon URL** to `http://127.0.0.1:8787`, paste the contents of `~/.hoseki/token` into **Bearer token**, and click **Save**.
 2. Click **Check health**. It must print `{"ok": true, ...}`.
 
 > If Hoseki doesn't run on a chat site in Firefox, open `about:addons` → Hoseki → **Permissions** and make sure site access is granted.

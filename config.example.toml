@@ -3,7 +3,7 @@
 
 [server]
 host = "127.0.0.1"      # DO NOT change unless you understand the risk.
-port = 8765
+port = 8787
 
 [workspace]
 # The only directory Hoseki will ever touch. Absolute path recommended.

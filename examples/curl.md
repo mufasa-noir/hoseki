@@ -4,4 +4,4 @@ All examples assume:
 
 ```bash
 export TOKEN=$(cat ~/.hoseki/token)
-export HOSEKI=http://127.0.0.1:8765
+export HOSEKI=http://127.0.0.1:8787

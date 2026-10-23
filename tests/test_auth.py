@@ -39,10 +39,10 @@ def test_origin_allowlist():
 
 
 def test_host_check():
-    server = ServerConfig(port=8765)
-    assert check_host("127.0.0.1:8765", server)
-    assert check_host("localhost:8765", server)
-    assert check_host("[::1]:8765", server)
-    assert not check_host("evil.example:8765", server)
+    server = ServerConfig(port=8787)
+    assert check_host("127.0.0.1:8787", server)
+    assert check_host("localhost:8787", server)
+    assert check_host("[::1]:8787", server)
+    assert not check_host("evil.example:8787", server)
     assert not check_host("127.0.0.1:9999", server)
     assert not check_host(None, server)

@@ -83,7 +83,7 @@ hoseki serve --config ./config.toml
 > **チェックポイント:** 次の行が表示され、プロセスが終了せず動き続けている。
 >
 > ```text
-> Hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+> Hoseki 0.3.0 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
 > ```
 
 **このターミナルは開いたままにしてください。** 承認プロンプトは、このあとここに表示されます。残りのステップは、2 つ目のターミナルで行います。
@@ -94,7 +94,7 @@ hoseki serve --config ./config.toml
 
 ```bash
 export TOKEN=$(cat ~/.hoseki/token)
-export HOSEKI=http://127.0.0.1:8765
+export HOSEKI=http://127.0.0.1:8787
 ```
 
 まず、ヘルスチェックをします（認証は不要です）。
@@ -155,7 +155,7 @@ Firefox Add-ons ストアからインストールできます: https://addons.mo
 
 次を入力します。
 
-- **Daemon URL:** `http://127.0.0.1:8765`
+- **Daemon URL:** `http://127.0.0.1:8787`
 - **Bearer token:** ターミナル #2 で `cat ~/.hoseki/token` を実行し、出力を貼り付けます。
 
 **Save** をクリックします。

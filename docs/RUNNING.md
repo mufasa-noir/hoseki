@@ -83,7 +83,7 @@ hoseki serve --config ./config.toml
 > **Checkpoint:** you see this line and the process stays running (no exit):
 >
 > ```text
-> Hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+> Hoseki 0.3.0 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
 > ```
 
 **Keep this terminal open.** Approval prompts will appear here later. Do the rest of the steps in a second terminal.
@@ -94,7 +94,7 @@ In **terminal #2**:
 
 ```bash
 export TOKEN=$(cat ~/.hoseki/token)
-export HOSEKI=http://127.0.0.1:8765
+export HOSEKI=http://127.0.0.1:8787
 ```
 
 First, check health (no auth needed):
@@ -155,7 +155,7 @@ Or load it manually:
 
 Fill in:
 
-- **Daemon URL:** `http://127.0.0.1:8765`
+- **Daemon URL:** `http://127.0.0.1:8787`
 - **Bearer token:** run `cat ~/.hoseki/token` in terminal #2 and paste the output.
 
 Click **Save**.

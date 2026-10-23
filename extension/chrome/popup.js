@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  daemonUrl: "http://127.0.0.1:8765",
+  daemonUrl: "http://127.0.0.1:8787",
   token: "",
   autoSend: false,
   autoSendAcknowledged: false,

@@ -18,7 +18,7 @@ DEFAULT_CONFIG_PATHS = [
 @dataclass
 class ServerConfig:
     host: str = "127.0.0.1"
-    port: int = 8765
+    port: int = 8787
 
 
 @dataclass

@@ -173,7 +173,7 @@ hoseki serve --config ./config.toml
 次のような行が表示され、プロセスが動き続けていれば成功です。
 
 ```
-hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
+hoseki 0.3.0 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
 ```
 
 このターミナルは開いたままにしてください。**承認プロンプトはここに表示されます。** 認証トークンは `~/.hoseki/token` にあります。
@@ -184,7 +184,7 @@ hoseki 0.3.0 listening on http://127.0.0.1:8765  workspace=/abs/path/to/folder
 
 ```
 export TOKEN=$(cat ~/.hoseki/token)
-export HOSEKI=http://127.0.0.1:8765
+export HOSEKI=http://127.0.0.1:8787
 
 curl -s $HOSEKI/v1/health | jq
 
@@ -218,7 +218,7 @@ Firefox Add-ons ストアからインストールできます: https://addons.mo
 
 **その後、どちらのブラウザでも**
 
-1. Hoseki のポップアップを開き、**Daemon URL** に `http://127.0.0.1:8765` を入力し、**Bearer token** に `~/.hoseki/token` の中身を貼り付けて、**Save** をクリックします。
+1. Hoseki のポップアップを開き、**Daemon URL** に `http://127.0.0.1:8787` を入力し、**Bearer token** に `~/.hoseki/token` の中身を貼り付けて、**Save** をクリックします。
 2. **Check health** をクリックします。`{"ok": true, ...}` と表示されれば成功です。
 
 > Firefox で Hoseki がチャットサイト上で動作しない場合は、`about:addons` → Hoseki → **権限** を開き、サイトへのアクセスが許可されていることを確認してください。

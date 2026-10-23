@@ -10,7 +10,7 @@ Run through this before trusting Hoseki with a real project.
 
 ## Daemon
 
-- [ ] `hoseki serve` prints "listening on http://127.0.0.1:8765"
+- [ ] `hoseki serve` prints "listening on http://127.0.0.1:8787"
 - [ ] `~/.hoseki/token` exists with mode `0600` (`stat -c %a ~/.hoseki/token`)
 - [ ] `curl /v1/health` returns `{"ok": true, ...}`
 - [ ] `curl /v1/status` **without** a token returns 401
