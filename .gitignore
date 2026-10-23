@@ -12,3 +12,4 @@ config.toml
 *.jsonl
 .DS_Store
 hoseki-sandbox/
+extension/icons_gen.py
