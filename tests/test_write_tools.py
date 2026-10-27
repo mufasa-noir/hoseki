@@ -94,3 +94,44 @@ def test_apply_patch_denied(ctx):
     assert not r.ok
     assert p.read_text() == "hello\nworld\n"
     ctx.approval.set_auto_for_tests(True)
+
+
+def test_apply_patch_headerless_hunk(ctx):
+    """A bare '@@' hunk with no ---/+++ header must still apply.
+
+    patch cannot parse headerless hunks on its own; apply_patch synthesizes
+    a header from the known target path. This case previously only passed
+    under the denied-approval test, so the bug went unnoticed.
+    """
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("hello\nworld\n")
+    diff = "@@ -1,2 +1,2 @@\n hello\n-world\n+earth\n"
+    r = apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "hello\nearth\n"
+
+
+def test_apply_patch_basename_header_in_subdir(ctx):
+    """Headers naming just the basename must apply to the file in args.path.
+
+    patch is given the explicit target, so it ignores the ---/+++ paths and
+    cannot strip its way to a different file.
+    """
+    d = ctx.jail.root / "src"
+    d.mkdir()
+    p = d / "auth.py"
+    p.write_text("x = 1\n")
+    diff = "--- auth.py\n+++ auth.py\n@@ -1 +1 @@\n-x = 1\n+x = 2\n"
+    r = apply_patch(ApplyPatchArgs(path="src/auth.py", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "x = 2\n"
+
+
+def test_apply_patch_mismatched_hunk_fails_cleanly(ctx):
+    """A hunk that doesn't match the file must fail without touching it."""
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("hello\nworld\n")
+    diff = "@@ -1,2 +1,2 @@\n hello\n-nonexistent\n+earth\n"
+    with pytest.raises(Exception):
+        apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert p.read_text() == "hello\nworld\n"
