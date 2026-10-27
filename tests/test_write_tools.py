@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from hoseki.errors import JailError, SecretDenied
+from hoseki.errors import JailError, SecretDenied, ToolError
 from hoseki.tools.apply_patch import ApplyPatchArgs, apply_patch
 from hoseki.tools.write_file import WriteFileArgs, write_file
 
@@ -117,9 +117,8 @@ def test_apply_patch_basename_header_in_subdir(ctx):
     patch is given the explicit target, so it ignores the ---/+++ paths and
     cannot strip its way to a different file.
     """
-    d = ctx.jail.root / "src"
-    d.mkdir()
-    p = d / "auth.py"
+    # The workspace fixture already creates ws/src/, so don't mkdir() it.
+    p = ctx.jail.root / "src" / "auth.py"
     p.write_text("x = 1\n")
     diff = "--- auth.py\n+++ auth.py\n@@ -1 +1 @@\n-x = 1\n+x = 2\n"
     r = apply_patch(ApplyPatchArgs(path="src/auth.py", unified_diff=diff), ctx)
@@ -132,6 +131,6 @@ def test_apply_patch_mismatched_hunk_fails_cleanly(ctx):
     p = ctx.jail.root / "greet.txt"
     p.write_text("hello\nworld\n")
     diff = "@@ -1,2 +1,2 @@\n hello\n-nonexistent\n+earth\n"
-    with pytest.raises(Exception):
+    with pytest.raises(ToolError):
         apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
     assert p.read_text() == "hello\nworld\n"
