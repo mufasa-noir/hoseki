@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import shutil
-import subprocess
-from pathlib import Path
+import re
+from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict
 
@@ -18,43 +17,115 @@ class ApplyPatchArgs(BaseModel):
     unified_diff: str
 
 
-def _ensure_header(diff: str, rel: str) -> str:
-    """Make sure the diff has a ---/+++ header.
+@dataclass
+class _Hunk:
+    old_start: int
+    new_start: int
+    old_lines: list[str]
+    new_lines: list[str]
 
-    GNU patch needs a header to parse the input, even when the target file
-    is passed explicitly on the command line. Models frequently emit bare
-    '@@' hunks, so synthesize a header from the known target path when it's
-    missing. Existing headers are left untouched.
+
+_HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def _parse_hunks(diff: str) -> list[_Hunk]:
+    """Parse a unified diff into hunks.
+
+    File headers (---/+++ lines) are optional; only '@@' hunks are required,
+    so headerless hunks produced by many models apply without synthesis.
     """
-    body = diff.lstrip("\n")
-    head = body.splitlines()[:4]
-    if any(line.startswith("--- ") for line in head):
-        return diff
-    return f"--- a/{rel}\n+++ b/{rel}\n" + body
+    lines = diff.splitlines(keepends=False)
+    hunks: list[_Hunk] = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        m = _HUNK_RE.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        old_start = int(m.group(1))
+        new_start = int(m.group(3))
+        i += 1
+        old_lines: list[str] = []
+        new_lines: list[str] = []
+        while i < n:
+            ln = lines[i]
+            if _HUNK_RE.match(ln) or ln.startswith("--- ") or ln.startswith("+++ "):
+                break
+            if ln.startswith("\\"):
+                i += 1
+                continue
+            if ln == "":
+                old_lines.append("")
+                new_lines.append("")
+            elif ln[0] == " ":
+                old_lines.append(ln[1:])
+                new_lines.append(ln[1:])
+            elif ln[0] == "-":
+                old_lines.append(ln[1:])
+            elif ln[0] == "+":
+                new_lines.append(ln[1:])
+            else:
+                raise ToolError(f"unparseable diff line inside hunk: {ln[:80]!r}")
+            i += 1
+        hunks.append(_Hunk(old_start, new_start, old_lines, new_lines))
+    if not hunks:
+        raise ToolError("no @@ hunks found in unified_diff")
+    return hunks
 
 
-def _run_patch(target: Path, diff: str, dry_run: bool) -> subprocess.CompletedProcess:
-    """Run GNU patch against an explicit target file.
+def _find_block(src: list[str], block: list[str], expected: int) -> int | None:
+    """Locate `block` in `src`, preferring the occurrence nearest `expected`.
 
-    Passing the original file as an argument means patch applies the hunks
-    to that file and ignores the ---/+++ paths, so strip-level (-pN)
-    guessing is unnecessary and cannot retarget the patch elsewhere.
+    Mirrors GNU patch's fuzzy offset search so hunks with stale line numbers
+    (a common LLM output failure) still apply to the correct location.
     """
-    cmd = ["patch", "--forward", "--batch", "--reject-file=-"]
-    if dry_run:
-        cmd.append("--dry-run")
-    cmd.append(str(target))
-    if not diff.endswith("\n"):
-        diff += "\n"
-    return subprocess.run(
-        cmd,
-        input=diff,
-        capture_output=True,
-        text=True,
-        cwd=str(target.parent),
-        timeout=30,
-        check=False,
-    )
+    if not block:
+        return min(max(expected, 0), len(src))
+    limit = len(src) - len(block)
+    if limit < 0:
+        return None
+    best: int | None = None
+    best_dist: int | None = None
+    for idx in range(limit + 1):
+        if src[idx:idx + len(block)] == block:
+            dist = abs(idx - expected)
+            if best_dist is None or dist < best_dist:
+                best, best_dist = idx, dist
+    return best
+
+
+def _apply_hunks(original: str, hunks: list[_Hunk]) -> str:
+    had_final_newline = original.endswith("\n")
+    src = original.splitlines(keepends=False)
+    out: list[str] = []
+    pos = 0
+    for hunk in hunks:
+        if hunk.old_lines:
+            expected = max(hunk.old_start - 1, 0)
+            idx = _find_block(src, hunk.old_lines, expected)
+            if idx is None:
+                preview = "\n".join(hunk.old_lines[:3])
+                raise ToolError(
+                    "hunk did not match the file at or near line "
+                    f"{hunk.old_start} (context: {preview[:120]!r})"
+                )
+        else:
+            # Pure insertion: '-N,0' means "after line N" (index N);
+            # '-0,0' means "before line 1" (index 0).
+            idx = min(max(hunk.old_start, 0), len(src))
+        if idx < pos:
+            raise ToolError(
+                f"overlapping or out-of-order hunk at line {hunk.old_start}"
+            )
+        out.extend(src[pos:idx])
+        out.extend(hunk.new_lines)
+        pos = idx + len(hunk.old_lines)
+    out.extend(src[pos:])
+    text = "\n".join(out)
+    if had_final_newline:
+        text += "\n"
+    return text
 
 
 def apply_patch(args: ApplyPatchArgs, ctx: ToolContext) -> ToolResult:
@@ -67,40 +138,36 @@ def apply_patch(args: ApplyPatchArgs, ctx: ToolContext) -> ToolResult:
     if not target.is_file():
         raise ToolError(f"not a regular file: {args.path}")
 
-    if shutil.which("patch") is None:
-        raise ToolError("the 'patch' utility was not found on PATH")
-
     rel = ctx.jail.relative(target)
-    diff = _ensure_header(args.unified_diff, rel)
+    try:
+        original = target.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ToolError(f"file is not valid UTF-8: {args.path}") from exc
+
+    hunks = _parse_hunks(args.unified_diff)
 
     decision = ctx.approval.request(
         ApprovalRequest(
             kind="apply_patch",
             summary=f"apply patch to {rel}",
-            body=diff,
+            body=args.unified_diff,
         )
     )
     if not decision.approved:
         return ToolResult(ok=False, error="patch denied by operator")
 
-    # Snapshot the file so a partial multi-hunk application can be rolled back.
-    original = target.read_bytes()
+    patched = _apply_hunks(original, hunks)
+    if patched == original:
+        return ToolResult(ok=True, output=f"{rel}: no changes")
 
-    dry = _run_patch(target, diff, dry_run=True)
-    if dry.returncode != 0:
-        msg = (dry.stdout + dry.stderr).strip()
-        raise ToolError(f"patch did not apply cleanly: {msg[:500]}")
-
-    real = _run_patch(target, diff, dry_run=False)
-    if real.returncode != 0:
+    original_bytes = original.encode("utf-8")
+    try:
+        target.write_text(patched, encoding="utf-8")
+    except OSError:
         try:
-            target.write_bytes(original)
+            target.write_bytes(original_bytes)
         except OSError:
             pass
-        msg = (real.stdout + real.stderr).strip()
-        raise ToolError(
-            f"patch failed after dry-run succeeded; file restored. {msg[:500]}"
-        )
+        raise ToolError(f"failed to write patched file: {args.path}")
 
-    out = (real.stdout or "").strip() or "patch applied cleanly"
-    return ToolResult(ok=True, output=f"{rel}: {out}")
+    return ToolResult(ok=True, output=f"{rel}: applied {len(hunks)} hunk(s)")

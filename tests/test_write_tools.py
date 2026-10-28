@@ -99,9 +99,9 @@ def test_apply_patch_denied(ctx):
 def test_apply_patch_headerless_hunk(ctx):
     """A bare '@@' hunk with no ---/+++ header must still apply.
 
-    patch cannot parse headerless hunks on its own; apply_patch synthesizes
-    a header from the known target path. This case previously only passed
-    under the denied-approval test, so the bug went unnoticed.
+    The parser accepts headerless hunks natively; no header synthesis is
+    needed. (Older versions shelled out to GNU patch, which required a
+    synthesized header.)
     """
     p = ctx.jail.root / "greet.txt"
     p.write_text("hello\nworld\n")
@@ -112,11 +112,7 @@ def test_apply_patch_headerless_hunk(ctx):
 
 
 def test_apply_patch_basename_header_in_subdir(ctx):
-    """Headers naming just the basename must apply to the file in args.path.
-
-    patch is given the explicit target, so it ignores the ---/+++ paths and
-    cannot strip its way to a different file.
-    """
+    """Headers are ignored; hunks always apply to args.path."""
     # The workspace fixture already creates ws/src/, so don't mkdir() it.
     p = ctx.jail.root / "src" / "auth.py"
     p.write_text("x = 1\n")
@@ -134,3 +130,66 @@ def test_apply_patch_mismatched_hunk_fails_cleanly(ctx):
     with pytest.raises(ToolError):
         apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
     assert p.read_text() == "hello\nworld\n"
+
+
+def test_apply_patch_insert_at_top(ctx):
+    """A '--- 0,0' style insertion at the top of the file must apply."""
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("hello\nworld\n")
+    diff = "@@ -0,0 +1,1 @@\n+first\n"
+    r = apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "first\nhello\nworld\n"
+
+
+def test_apply_patch_insert_midfile(ctx):
+    """A '-2,0' insertion goes after line 2, per unified-diff semantics."""
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("a\nb\nc\n")
+    diff = "@@ -2,0 +3,1 @@\n+inserted\n"
+    r = apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "a\nb\ninserted\nc\n"
+
+
+def test_apply_patch_stale_line_numbers(ctx):
+    """Hunks whose line numbers are far off still apply via fuzzy matching."""
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("a\nb\nc\nd\n")
+    diff = "@@ -100,2 +100,2 @@\n b\n-c\n+C\n"
+    r = apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "a\nb\nC\nd\n"
+
+
+def test_apply_patch_multiple_hunks(ctx):
+    p = ctx.jail.root / "nums.txt"
+    p.write_text("1\n2\n3\n4\n5\n6\n")
+    diff = (
+        "@@ -1,2 +1,2 @@\n 1\n-2\n+two\n"
+        "@@ -5,2 +5,2 @@\n 5\n-6\n+six\n"
+    )
+    r = apply_patch(ApplyPatchArgs(path="nums.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "1\ntwo\n3\n4\n5\nsix\n"
+
+
+def test_apply_patch_preserves_missing_trailing_newline(ctx):
+    p = ctx.jail.root / "nonl.txt"
+    p.write_text("x\ny")  # no trailing newline
+    diff = "@@ -1,2 +1,2 @@\n x\n-y\n+z\n"
+    r = apply_patch(ApplyPatchArgs(path="nonl.txt", unified_diff=diff), ctx)
+    assert r.ok, r.error
+    assert p.read_text() == "x\nz"
+
+
+def test_apply_patch_overlapping_hunks_rejected(ctx):
+    p = ctx.jail.root / "greet.txt"
+    p.write_text("a\nb\nc\n")
+    diff = (
+        "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n"
+        "@@ -2,2 +2,2 @@\n b\n-c\n+C\n"
+    )
+    with pytest.raises(ToolError):
+        apply_patch(ApplyPatchArgs(path="greet.txt", unified_diff=diff), ctx)
+    assert p.read_text() == "a\nb\nc\n"
