@@ -146,7 +146,7 @@ cd hoseki
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e '.[dev]'
-hoseki --version                   # hoseki 0.3.1 と表示されれば OK
+hoseki --version                   # hoseki 0.3.2 と表示されれば OK
 ```
 
 ### ステップ 2: 設定する
@@ -173,7 +173,7 @@ hoseki serve --config ./config.toml
 次のような行が表示され、プロセスが動き続けていれば成功です。
 
 ```
-hoseki 0.3.1 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
+hoseki 0.3.2 listening on http://127.0.0.1:8787  workspace=/abs/path/to/folder
 ```
 
 このターミナルは開いたままにしてください。**承認プロンプトはここに表示されます。** 認証トークンは `~/.hoseki/token` にあります。
